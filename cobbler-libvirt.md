@@ -63,12 +63,18 @@ dhcp-range=<start IP address>,<end IP address>
 #dhcp-option=3,$next_server
 dhcp-option=option:router,<gateway IP address>
 ```
-* Synchronize and check Cobbler configurations.
+* Apply Cobbler settings by restarting Cobbler daemon.
 ```
 # systemctl restart cobblerd
+```
+* Synchronize Cobbler configurations to other services.
+```
 # cobbler sync
 # systemctl enable xinetd
 # systemctl start xinetd
+```
+* Check Cobbler configurations.
+```
 # cobbler check
 ```
 
