@@ -21,16 +21,6 @@ This is based on the server with CentOS 7 minimum installation.
 # systemctl start cobblerd
 ```
 
-##Configure VM
-* Pre-allocate disk image for each VM.
-```
-# qemu-img create -f raw vm131 20G
-```
-* Generate VM XML file. MAC address is pre-assigned for each VM in template.sh.
-```
-# template.sh vm131 1 16
-```
-
 ##Configure Cobbler
 * Generate encrypted password.
 ```
@@ -75,6 +65,7 @@ dhcp-option=option:router,<gateway IP address>
 ```
 * Synchronize and check Cobbler configurations.
 ```
+# systemctl restart cobblerd
 # cobbler sync
 # systemctl enable xinetd
 # systemctl start xinetd
@@ -99,6 +90,20 @@ dhcp-option=option:router,<gateway IP address>
 ```
 # cobbler system add --name vm131 --profile centos7-min-x86_64
 # cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b
+```
+* Apply all changes.
+```
+# cobbler sync
+```
+
+##Configure VM
+* Pre-allocate disk image for each VM.
+```
+# qemu-img create -f raw vm131 20G
+```
+* Generate VM XML file. MAC address is pre-assigned for each VM in template.sh.
+```
+# template.sh vm131 1 16
 ```
 
 ##Launch VM
