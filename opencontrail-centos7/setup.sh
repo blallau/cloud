@@ -128,11 +128,64 @@ __EOT__
 compute_install()
 {
     echo "Install compute..."
+
+    # Pre-install
+    mkdir -p /etc/contrail
+    cat /sys/class/net/$nic/address > /etc/contrail/default_if
+    cat /sys/class/net/$nic/address > /etc/contrail/default_pmac
+
+    # Install packages
+    package_list="
+        net-tools
+        contrail-vrouter
+        contrail-vrouter-init
+        contrail-utils
+        contrail-nodemgr"
+
+    yum -y install $package_list
+
+    echo "Install compute is completed."
 }
 
 compute_provision()
 {
     echo "Provisioning compute..."
+
+    /opt/contrail/bin/vnagent_param_setup.sh $(uname -r)
+    sed "s/__DEVICE__/$nic/" /etc/contrail/agent_param.tmpl > /etc/contrail/agent_param
+    rm -f /etc/contrail/agent_param.tmpl
+
+    rm -f /etc/contrail/contrail-vrouter-agent.conf
+    sed -e "s/__DEVICE__/$nic/g" -e "s/__HOST_IP__/$host_ip/g" -e "s/__HOST_IP_PREFIX__/$host_ip_prefix/g" -e "s/__GATEWAY__/$gateway/g" -e "s/__CONTROL__/$controller/g" etc/contrail/contrail-vrouter-agent.conf.template > /etc/contrail/contrail-vrouter-agent.conf
+
+    cp etc/contrail/rpm_list.txt /etc/contrail
+
+    chkconfig --add supervisor-vrouter
+
+    # Create ifcfg-vhost0 and update ifcfg-$nic
+    nic_path=/etc/sysconfig/network-scripts
+    if [ ! -f $nic_path/ifcfg-$nic.orig ]; then
+        cp $nic_path/ifcfg-$nic $nic_path/ifcfg-$nic.orig
+    fi
+
+    cat << __EOT__ > $nic_path/ifcfg-vhost0
+DEVICE=vhost0
+ONBOOT=yes
+NM_CONTROLLED=no
+#NETWORK MANAGER BUG WORKAROUND
+SUBCHANNELS=1,2,3
+BOOTPROTO=none
+__EOT__
+
+    sed -n '/IPADDR/ p' $nic_path/ifcfg-$nic >> $nic_path/ifcfg-vhost0
+    sed -n '/NETMASK/ p' $nic_path/ifcfg-$nic >> $nic_path/ifcfg-vhost0
+    sed -n '/NETWORK/ p' $nic_path/ifcfg-$nic >> $nic_path/ifcfg-vhost0
+    sed -n '/GATEWAY/ p' $nic_path/ifcfg-$nic >> $nic_path/ifcfg-vhost0
+    sed -n '/DNS/ p' $nic_path/ifcfg-$nic >> $nic_path/ifcfg-vhost0
+
+    sed -i -e '/IPADDR/ d' -e '/NETMASK/ d' -e '/NETWORK/ d' -e '/GATEWAY/ d' -e '/DNS/ d' -e '/BOOTPROTO/ d' $nic_path/ifcfg-$nic
+
+    echo "Provisioning compute is completed"
 }
 
 if [ ! -e /etc/yum.repos.d/contrail-install.repo ]
