@@ -3,7 +3,7 @@ text
 url --url $tree
 lang en_US.UTF-8
 keyboard us
-timezone America/New_York
+timezone US/Pacific
 auth --enableshadow --enablemd5
 rootpw --iscrypted $default_password_crypted
 autopart
