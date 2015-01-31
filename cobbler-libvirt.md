@@ -12,6 +12,12 @@ This is based on the server with CentOS 7 minimum installation.
 # rpm -ivh epel-release-7-2.noarch.rpm
 ```
 * Install KVM and libvirt.
+```
+# yum install qemu-kvm
+# yum install libvirt
+# systemctl enable libvirtd
+# systemctl start libvirtd
+```
 * Install Cobbler and required packages.
 ```
 # yum install cobbler syslinux httpd pykickstart
@@ -97,7 +103,7 @@ dhcp-option=option:router,<gateway IP address>
 # cobbler system add --name vm131 --profile centos7-min-x86_64
 # cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b
 ```
-* Apply all changes.
+* Synchronize all changes.
 ```
 # cobbler sync
 ```
