@@ -30,6 +30,7 @@ This is based on the server with CentOS 7 minimum installation.
 # systemctl start cobblerd
 ```
 
+
 ## 2 Configure Cobbler
 * Generate encrypted password.
 ```
@@ -93,11 +94,13 @@ dhcp-option=option:router,<gateway IP address>
 # cobbler check
 ```
 
+
 ## 3 Configure System
+### 3.1 CentOS
 * Import distro.
 ```
 # mkdir -p /mnt/iso
-# mount -o loop <CentOS 7 Minimum ISO file> /mnt/iso
+# mount -o loop CentOS-7.0-1406-x86_64-Minimal.iso /mnt/iso
 # cobbler import --arch x86_64 --path /mnt/iso --name centos7-min
 # umount /mnt/iso
 # cobbler distro report --name centos7-min
@@ -119,6 +122,37 @@ dhcp-option=option:router,<gateway IP address>
 ```
 # cobbler sync
 ```
+
+### 3.2 Ubuntu
+* Import distro.
+```
+# mkdir -p /mnt/iso
+# mount -o loop ubuntu-14.04.2-server-amd64.iso /mnt/iso
+# cobbler import --arch x86_64 --path /mnt/iso --name ubuntu-14.04
+# umount /mnt/iso
+# cobbler distro report --name ubuntu-14.04-x86_64
+# cobbler profile report --name ubuntu-14.04-x86_64
+```
+
+* Specify kickstart file for the profile.
+```
+# cobbler profile edit --name ubuntu-14.04-x86_64 --kickstart /var/lib/cobbler/kickstarts/ubuntu-14.04.seed
+```
+
+* Add and configure a system.
+```
+# cobbler system add --name vm131 --profile ubuntu-14.04-x86_64
+# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --management True
+```
+
+* Synchronize all changes.
+```
+# cobbler sync
+```
+
+* Add post script.
+Create post script in `/var/lib/cobbler/scripts` directory. Update `d-i preseed/late_command` in seed file to use the new script.
+
 
 ## 4 Configure VM
 * Pre-allocate disk image for each VM.
