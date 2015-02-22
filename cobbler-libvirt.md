@@ -1,16 +1,18 @@
 #Build virtual machine automatically with libvirt and Cobbler
 This is based on the server with CentOS 7 minimum installation.
 
-##Install Packages
+## 1 Install Packages
 * Install wget.
 ```
 # yum install wget
 ```
+
 * Add EPEL repository.
 ```
 # wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 # rpm -ivh epel-release-7-2.noarch.rpm
 ```
+
 * Install KVM and libvirt.
 ```
 # yum install qemu-kvm
@@ -18,6 +20,7 @@ This is based on the server with CentOS 7 minimum installation.
 # systemctl enable libvirtd
 # systemctl start libvirtd
 ```
+
 * Install Cobbler and required packages.
 ```
 # yum install cobbler syslinux httpd pykickstart
@@ -27,11 +30,12 @@ This is based on the server with CentOS 7 minimum installation.
 # systemctl start cobblerd
 ```
 
-##Configure Cobbler
+## 2 Configure Cobbler
 * Generate encrypted password.
 ```
 # openssl passwd -1
 ```
+
 * Configure the following options in `/etc/cobbler/settings`.
 ```
 default_password_crypted: "<encrypted password>"
@@ -44,6 +48,7 @@ pxe_just_once: 1
 next_server: <Cobbler server IP address>
 server: <Cobbler server IP address>
 ```
+
 * Configure the following options in `/etc/cobbler/modules.conf`.
 ```
 [dns]
@@ -55,6 +60,7 @@ module = manage_dnsmasq
 [tftpd]
 module = manage_in_tftpd
 ```
+
 * Configure the following options in `/etc/cobbler/dnsmasq.template`.
 ```
 # There is already an instance of dnsmasq running for libvirt and listening to
@@ -69,22 +75,25 @@ dhcp-range=<start IP address>,<end IP address>
 #dhcp-option=3,$next_server
 dhcp-option=option:router,<gateway IP address>
 ```
+
 * Apply Cobbler settings by restarting Cobbler daemon.
 ```
 # systemctl restart cobblerd
 ```
+
 * Synchronize Cobbler configurations to other services.
 ```
 # cobbler sync
 # systemctl enable xinetd
 # systemctl start xinetd
 ```
+
 * Check Cobbler configurations.
 ```
 # cobbler check
 ```
 
-##Configure System
+## 3 Configure System
 * Import distro.
 ```
 # mkdir -p /mnt/iso
@@ -94,21 +103,24 @@ dhcp-option=option:router,<gateway IP address>
 # cobbler distro report --name centos7-min
 # cobbler profile report --name centos7-min-x86_64
 ```
+
 * Specify kickstart file for the profile.
 ```
 # cobbler profile edit --name centos7-min-x86_64 --kickstart /var/lib/cobbler/kickstarts/centos7.ks
 ```
+
 * Add and configure a system.
 ```
 # cobbler system add --name vm131 --profile centos7-min-x86_64
-# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b
+# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --management True
 ```
+
 * Synchronize all changes.
 ```
 # cobbler sync
 ```
 
-##Configure VM
+## 4 Configure VM
 * Pre-allocate disk image for each VM.
 ```
 # qemu-img create -f raw vm131 20G
@@ -118,7 +130,7 @@ dhcp-option=option:router,<gateway IP address>
 # template.sh vm131 1 16
 ```
 
-##Launch VM
+## 5 Launch VM
 ```
 # virsh create vm131.xml
 ```
