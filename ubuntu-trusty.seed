@@ -1,0 +1,73 @@
+# Ubuntu installation guide
+# https://help.ubuntu.com/14.04/installation-guide/
+
+d-i debian-installer/locale string en_US
+d-i console-setup/ask_detect boolean false
+d-i keyboard-configuration/layoutcode string us
+
+d-i time/zone string America/Los_Angeles
+d-i clock-setup/utc boolean true
+d-i clock-setup/ntp boolean true
+d-i clock-setup/ntp-server string $server
+
+d-i mirror/country string manual
+d-i mirror/http/hostname string $http_server
+d-i mirror/http/directory string $install_source_directory
+
+d-i live-installer/net-image string http://$http_server/cobbler/links/$distro_name/install/filesystem.squashfs
+
+d-i apt-setup/services-select multiselect security
+d-i apt-setup/security_host string $http_server
+d-i apt-setup/security_path string $install_source_directory
+
+d-i partman/unmount_active boolean true
+d-i partman/early_command string if mount | grep media; then umount /media; fi
+d-i partman-auto/method string lvm
+d-i partman-auto/choose_recipe select atomic
+d-i partman-auto/expert_recipe string               \
+    boot-root ::                                    \
+        256 256 256 ext4                            \
+            $primary{ } $bootable{ }                \
+            method{ format } format{ }              \
+            use_filesystem{ } filesystem{ ext4 }    \
+            mountpoint{ /boot }                     \
+        .                                           \
+        512 512 512 linux-swap                      \
+            lvmok{ } lv_name{ swap }                \
+            method{ swap } format{ }                \
+        .                                           \
+        5000 5000 -1 ext4                           \
+            lvmok{ } lv_name{ root }                \
+            method{ format } format{ }              \
+            use_filesystem{ } filesystem{ ext4 }    \
+            mountpoint{ / }                         \
+        .
+
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-md/device_remove_md boolean true
+
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+d-i passwd/root-login boolean true
+d-i passwd/root-password-crypted password $default_password_crypted
+d-i passwd/make-user boolean false
+
+d-i pkgsel/include string ntp ssh wget
+
+d-i debian-installer/add-kernel-opts string $kernel_options_post
+
+d-i finish-install/reboot_in_progress note
+
+d-i preseed/early_command string \
+    wget -O- http://$http_server/cblr/svc/op/script/system/$name/?script=preseed_early_default | /bin/sh -s
+
+d-i preseed/late_command string \
+    wget -O- http://$http_server/cblr/svc/op/script/system/$name/?script=preseed_late_ubuntu | chroot /target /bin/sh -s; \
+    cp /target/etc/network/interfaces /etc/network/interfaces;
+
+
