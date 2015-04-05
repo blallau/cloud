@@ -1,6 +1,29 @@
 #Build virtual machine automatically with libvirt and Cobbler
 This is based on the server with CentOS 7 minimum installation.
 
+## Enable nexted KVM
+* Create `/etc/modprobe.d/kvm-nested.conf`.
+```
+options kvm_intel nested=1
+```
+
+* Unload and reload module, then check the option. If libvirtd is running, stop it before unloading the module.
+```
+# modprobe -r kvm_intel
+# modprobe kvm_intel
+# cat /sys/module/kvm_intel/parameters/nested
+Y
+```
+
+* Set CPU model for VM.
+```
+  <cpu mode='custom' match='exact'>
+    <model fallback='allow'>SandyBridge</model>
+    <vendor>Intel</vendor>
+    <feature policy='require' name='vmx'/>
+  </cpu>
+```
+
 ## 1 Install Packages
 * Install wget.
 ```
