@@ -138,7 +138,7 @@ dhcp-option=option:router,<gateway IP address>
 * Add and configure a system.
 ```
 # cobbler system add --name vm131 --profile centos7-min-x86_64
-# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --management True
+# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --gateway 10.161.208.142 --management True
 ```
 
 * Synchronize all changes.
@@ -165,7 +165,7 @@ dhcp-option=option:router,<gateway IP address>
 * Add and configure a system.
 ```
 # cobbler system add --name vm131 --profile ubuntu-14.04-x86_64
-# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --management True
+# cobbler system edit --name vm131 --hostname vm131 --interface eth0 --ip-address 10.161.208.132 --mac 52:54:00:76:a5:2b --gateway 10.161.208.142 --management True
 ```
 
 * Synchronize all changes.
