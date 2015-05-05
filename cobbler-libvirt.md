@@ -193,4 +193,21 @@ Create post script in `/var/lib/cobbler/scripts` directory. Update `d-i preseed/
 ```
 Use VNC client connecting to the server to watch the installation.
 
+## 6 NFS
+On the server, add this line to /etc/exports.
+```
+/root/share  *(rw,sync,no_wdelay,no_root_squash,insecure,no_subtree_check)
+```
+Enable and start NFS server.
+```
+# systemctl enable nfs-server
+# systemctl start nfs-server
+```
+
+On VM, install NFS mount and mount it.
+```
+# yum install nfs-utils
+# mount -o nolock 10.161.208.130:/root/share /mnt
+```
+
 
