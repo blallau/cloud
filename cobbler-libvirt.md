@@ -40,9 +40,11 @@ Y
 ```
 # yum install qemu-kvm
 # yum install libvirt
+# yum upgrade device-mapper-libs
 # systemctl enable libvirtd
 # systemctl start libvirtd
 ```
+Note, device-mapper-libs needs to be updated for CentOS 7.0, otherwise, "no connection driver available for qemu:///system" may show up.
 
 * Install Cobbler and required packages.
 ```
@@ -207,7 +209,7 @@ Enable and start NFS server.
 On VM, install NFS mount and mount it.
 ```
 # yum install nfs-utils
-# mount -o nolock 10.161.208.130:/root/share /mnt
+# mount 10.161.208.130:/root/share /mnt
 ```
 
 
