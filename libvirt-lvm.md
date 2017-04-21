@@ -91,6 +91,23 @@ Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devic
 </domain>
 ```
 
+```
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file='__image__'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+```
+
+```
+virt-install --connect qemu:///system --virt-type kvm \
+    --name <vm name> --vcpus <cpu> --ram <MB> \
+    --disk bus=virtio,vol=<pool>/<volume>,cache=none \
+    -w bridge=<bridge>,model=virtio \
+    --graphics vnc,listen=0.0.0.0 --noautoconsole \
+    --pxe --boot network
+```
+
 ##3 Attach disk
 Create volume and attach to VM.
 ```
