@@ -1,0 +1,792 @@
+#!/usr/bin/python
+
+import time
+import argparse
+import subprocess
+import paramiko
+import random
+import json
+from sm_conf import *
+
+class Manager(object):
+    def __init__(self):
+        self.parser_init()
+
+    def get_server(self, name):
+        for server in server_list:
+            if server['hostname'] == name:
+                return server
+        else:
+            print 'ERROR: Server %s is not found!' %(name)
+
+    def server_image(self, server):
+        pass
+
+    def connect(self, server):
+        addr = server['mgmt-if']['address']
+        self.ssh = paramiko.SSHClient()
+        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        count = 0
+        while True:
+            print 'Connecting to server %s...%d' %(addr, count)
+            try:
+                #self.ssh.connect(addr)
+                self.ssh.connect(addr, username = username,
+                        password = password)
+                break
+            except:
+                count += 1
+                time.sleep(10)
+        print '\n%s: Connected.' %(addr)
+        self.sftp = self.ssh.open_sftp()
+
+    def exec_cmd(self, cmd, print_output = False):
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        if print_output:
+            print stdout.read()
+            return
+        lines = []
+        while True:
+            line = stdout.readline()
+            if not line:
+                break
+            line = line.rstrip('\n')
+            lines.append(line)
+        return lines
+
+    def copy_file(self, src, dst, mode = None):
+        self.sftp.put(src, dst)
+        if mode:
+            cmd = '/bin/chmod %s %s' %(mode, dst)
+            stdin, stdout, stderr = self.ssh.exec_command(cmd)
+
+    def render_file(self, src, dst, vars, local = False):
+        f_src = open(src)
+        if local:
+            f_dst = open(dst, 'w')
+        else:
+            f_dst = self.sftp.open(dst, 'w')
+        while True:
+            line = f_src.readline()
+            if not line:
+                break
+            for var_name in vars.keys():
+                line = line.replace('__' + var_name + '__', vars[var_name])
+            f_dst.write(line)
+        f_src.close()
+        f_dst.close()
+
+    def enable_nested_vm(self, server):
+        print 'Enable nested virtualization...'
+        cmd = 'cat /sys/module/kvm_intel/parameters/nested'
+        output = self.exec_cmd(cmd)
+        if 'Y' in output[0]:
+            print '    Skip...'
+            return
+        print '    Update...'
+        file = '/etc/modprobe.d/kvm-nested.conf'
+        cmd = 'echo "options kvm_intel nested=1" | sudo tee %s > /dev/null' \
+                %file
+        self.exec_cmd(cmd)
+        cmd = 'sudo rmmod kvm_intel; sudo modprobe kvm_intel'
+        self.exec_cmd(cmd)
+
+    def set_hosts(self, server):
+        print 'Setup hosts...'
+        cmd = 'sudo grep %s /etc/hosts' %server['hostname']
+        output = self.exec_cmd(cmd)
+        if output and (server['mgmt-if']['address'] in output[0]):
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'echo %s  %s | sudo tee -a /etc/hosts > /dev/null' \
+                %(server['mgmt-if']['address'], server['hostname'])
+        self.exec_cmd(cmd)
+
+    def disable_ufw(self, server):
+        print 'Disable firewall...'
+        cmd = 'sudo ufw disable'
+        self.exec_cmd(cmd)
+
+    def set_ssh_key(self, server):
+        print 'Setup SSH key...'
+        cmd = 'mkdir -p /root/.ssh;'
+        self.exec_cmd(cmd)
+        self.copy_file('id_rsa.pub', '/root/.ssh/authorized_keys')
+
+    def set_apt_source(self, server):
+        print 'Setup apt source...'
+        cmd = 'grep CODENAME /etc/lsb-release'
+        output = self.exec_cmd(cmd)
+        if 'trusty' in output[0]:
+            self.copy_file('sources.list.trusty', '/etc/apt/sources.list')
+        elif 'xenial' in output[0]:
+            self.copy_file('sources.list.xenial', '/etc/apt/sources.list')
+        cmd = 'sudo apt-get update -q'
+        self.exec_cmd(cmd)
+        #cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y ' \
+        #      'software-properties-common python-yaml'
+        #self.exec_cmd(cmd)
+
+    def set_ntp(self, server):
+        print 'Setup NTP...'
+        cmd = 'sudo service ntp status'
+        output1 = self.exec_cmd(cmd)
+        cmd = 'grep %s /etc/ntp.conf' %ntp_server
+        output2 = self.exec_cmd(cmd)
+        if output1 and ('running' in output1[0]) and \
+                output2 and (ntp_server in output2[0]):
+            print '    Skip...'
+            return
+        cmd = 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ntp'
+        self.exec_cmd(cmd)
+        file = self.sftp.open('ntp.conf', 'w')
+        file.write('driftfile /var/lib/ntp/drift\n')
+        file.write('server %s iburst\n' %ntp_server)
+        file.write('restrict 127.0.0.1\n')
+        file.write('restrict -6 ::1\n')
+        file.write('\n')
+        file.close()
+        cmd = 'sudo mv ntp.conf /etc; sudo service ntp restart; rm ntp.conf'
+        self.exec_cmd(cmd)
+
+    def set_proxy(self, server):
+        print 'Setup proxy...'
+        self.exec_cmd('export http_proxy=http://96.239.250.29:80')
+        self.exec_cmd('export https_proxy=http://96.239.250.29:80')
+        self.exec_cmd('export HTTP_PROXY=http://96.239.250.29:80')
+        self.exec_cmd('export HTTPS_PROXY=http://96.239.250.29:80')
+        self.exec_cmd('export ftp_proxy=http://96.239.250.29:80')
+        self.exec_cmd('export FTP_PROXY=http://96.239.250.29:80')
+
+        result = self.exec_cmd('grep http_proxy .bashrc')
+        if not result:
+            file = self.sftp.open('.bashrc', 'a+')
+            file.write('export http_proxy=http://96.239.250.29:80\n')
+            file.write('export ftp_proxy=http://96.239.250.29:80/\n')
+            file.write('export https_proxy=http://96.239.250.29:80/\n')
+            file.write('export HTTP_PROXY=http://96.239.250.29:80/\n')
+            file.write('export HTTPS_PROXY=http://96.239.250.29:80/\n')
+            file.write('export FTP_PROXY=http://96.239.250.29:80/\n')
+            file.write('\n')
+            file.close()
+
+        result = self.exec_cmd('sudo grep http_proxy /etc/sudoers')
+        if not result:
+            file = self.sftp.open('sudo-env-list', 'w')
+            file.write('Defaults    env_keep += "http_proxy"\n')
+            file.write('Defaults    env_keep += "https_proxy"\n')
+            file.write('Defaults    env_keep += "HTTP_PROXY"\n')
+            file.write('Defaults    env_keep += "HTTPS_PROXY"\n')
+            file.write('\n')
+            file.close()
+            cmd = 'cat sudo-env-list | sudo tee -a /etc/sudoers > /dev/null'
+            self.exec_cmd(cmd)
+
+    def juju_local_install(self, server):
+        print '%s: Add Juju source...' %(server['mgmt-if']['address'])
+        cmd = '/usr/bin/apt-add-repository ppa:juju/stable'
+        self.exec_cmd(cmd)
+        cmd = '/usr/bin/apt-get update -q'
+        self.exec_cmd(cmd)
+
+        print '%s: Install Juju...' %(server['mgmt-if']['address'])
+        cmd = 'DEBIAN_FRONTEND=noninteractive apt-get install -y ' \
+              'juju-local qemu-kvm libvirt-bin bridge-utils virt-manager ' \
+              'qemu-system uvtool-libvirt uvtool juju-deployer'
+        self.exec_cmd(cmd)
+
+    def setup_lxc(self, server):
+        print '%s: Install LXC...' %(server['mgmt-if']['address'])
+        cmd = 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y lxc'
+        self.exec_cmd(cmd)
+
+        print '%s: Configure LXC...' %(server['mgmt-if']['address'])
+        file_name = 'ubuntu-cloud.trusty.conf'
+        self.copy_file(file_name, file_name)
+        cmd = 'sudo mv %s /usr/share/lxc/config/' %file_name
+        self.exec_cmd(cmd)
+        file_name = 'user-hook-manual'
+        self.copy_file(file_name, file_name, '0755')
+        cmd = 'sudo mv %s /usr/share/lxc/hooks/user-hook' %file_name
+        self.exec_cmd(cmd)
+
+        cmd = 'sudo systemctl status lxc-net'
+        result = self.exec_cmd(cmd)
+        if not 'inactive' in result:
+            cmd = 'sudo systemctl stop lxc-net'
+            self.exec_cmd(cmd)
+
+        file = self.sftp.open('lxc-net', 'w')
+        file.write('USE_LXC_BRIDGE="false"\n')
+        file.close()
+        cmd = 'sudo mv lxc-net /etc/default/'
+        self.exec_cmd(cmd)
+
+    def install_bond(self, server):
+        cmd = 'dpkg-query -l | grep ifenslave'
+        output = self.exec_cmd(cmd)
+        if output and ('ifenslave' in output[0]):
+            return
+        cmd = 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ifenslave'
+        self.exec_cmd(cmd)
+
+    def install_libvirt(self, server):
+        print 'Install qemu-kvm and libvirt...'
+        cmd = 'dpkg-query -l | grep libvirt-bin'
+        output = self.exec_cmd(cmd)
+        if output and ('libvirt-bin' in output[0]):
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ' \
+              'qemu-kvm libvirt-bin virtinst bridge-utils'
+        self.exec_cmd(cmd)
+
+    def disable_libvirt_default_net(self, server):
+        print 'Disable libvirt default network...'
+        cmd = 'virsh net-list | grep default'
+        output = self.exec_cmd(cmd)
+        if not output:
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'virsh net-destroy default; virsh net-undefine default'
+        self.exec_cmd(cmd)
+
+    def setup_libvirt(self, server):
+        print 'Building VM images...'
+        cmd = 'mkdir -p /var/vm/image'
+        self.exec_cmd(cmd)
+        for id in range(1, 4):
+            vm_name = server['hostname'] + '-vm' + str(id)
+            image_name = '/var/vm/image/%s' %vm_name
+            cmd = '/usr/bin/qemu-img create -f qcow2 %s 100G' %image_name
+            self.exec_cmd(cmd)
+            self.copy_file('%s.xml' %vm_name, '/var/vm/%s.xml' %vm_name)
+
+    def build_vol_pool(self, server):
+        print 'Build volume pool...'
+        pool_name = server['vol-pool']['name']
+        pool_dev = server['vol-pool']['device']
+        cmd = 'virsh pool-list | grep %s' %pool_name
+        output = self.exec_cmd(cmd)
+        if output and (pool_name in output[0]):
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'virsh pool-define-as --name %s --type logical --source-dev %s' \
+                %(pool_name, pool_dev)
+        self.exec_cmd(cmd)
+        cmd = 'virsh pool-build %s; virsh pool-start %s; ' \
+                'virsh pool-autostart %s' %(pool_name, pool_name, pool_name)
+        self.exec_cmd(cmd)
+
+    def enable_vol_access(self, server):
+        print 'Enable libvirt to access to /dev/dm*...'
+        cmd = 'grep /dev/dm /etc/apparmor.d/abstractions/libvirt-qemu'
+        output = self.exec_cmd(cmd)
+        if output:
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'sudo sed -i \'/dev\\/net\\/tun/i \  /dev/dm* rw,\' ' \
+                '/etc/apparmor.d/abstractions/libvirt-qemu' 
+        self.exec_cmd(cmd)
+        cmd = 'sudo service apparmor restart'
+        self.exec_cmd(cmd)
+
+    def set_tmp(self, server):
+        cmd = 'sudo rm -fr /root/.ssh/*'
+        self.exec_cmd(cmd)
+        cmd = 'sudo rm -fr /home/ubuntu/.ssh/*'
+        self.exec_cmd(cmd)
+        file_name = 'sshd_config'
+        self.copy_file(file_name, file_name)
+        cmd = 'sudo mv %s /etc/ssh/' %file_name
+        self.exec_cmd(cmd)
+        cmd = 'sed -i \'s/disable_root: true/disable_root: false/g\' ' \
+                '/etc/cloud/cloud.cfg'
+        self.exec_cmd(cmd)
+        cmd = 'sudo service ssh restart'
+        self.exec_cmd(cmd)
+
+    def restart_interface(self, server):
+        cmd = 'diff -u interfaces /etc/network/interfaces'
+        output = self.exec_cmd(cmd)
+        if not output:
+            print '    Skip...'
+            return
+        print '    Restart interface...'
+        cmd = 'sudo ifdown -a; sleep 3; '
+        cmd += 'sudo mv interfaces /etc/network; '
+        cmd += 'sudo ifup -a; sleep 3'
+        self.exec_cmd(cmd)
+
+    def set_address(self, file, interface, mgmt = False):
+        s = subnet[interface['subnet']]
+        file.write('    address %s\n' %interface['address'])
+        file.write('    netmask %s\n' %s['netmask'])
+        if mgmt:
+            file.write('    gateway %s\n' %s['gateway'])
+
+    def set_data_interface(self, server, file):
+        data_if = server['data-if']
+        if 'bond' in data_if['name']:
+            self.install_bond(server)
+            cmd = 'cat /sys/class/net/%s/address' %data_if['slave'][0]
+            mac = self.exec_cmd(cmd)[0]
+            for slave_if in data_if['slave']:
+                file.write('auto %s\n' %slave_if)
+                file.write('iface %s inet manual\n' %slave_if)
+                file.write('    bond-master bond0\n')
+                file.write('\n')
+
+        file.write('auto %s\n' %data_if['name'])
+        if data_if.has_key('lxcbr') or data_if.has_key('bridge'):
+            file.write('iface %s inet manual\n' %data_if['name'])
+        else:
+            file.write('iface %s inet static\n' %data_if['name'])
+        if 'bond' in data_if['name']:
+            file.write('    hwaddress %s\n' %mac)
+            file.write('    bond-slaves none\n')
+            file.write('    bond-mode 802.3ad\n')
+            file.write('    bond-miimon 100\n')
+            file.write('    bond-xmit_hash_policy layer3+4\n')
+        if data_if.has_key('lxcbr') or data_if.has_key('bridge'):
+            file.write('\n')
+        else:
+            self.set_address(file, server['data-if'])
+            file.write('\n')
+
+        if data_if.has_key('lxcbr'):
+            file.write('auto %s\n' %data_if['lxcbr'])
+            file.write('iface %s inet static\n' %data_if['lxcbr'])
+            self.set_address(file, server['data-if'])
+            file.write('    bridge_ports %s\n' %data_if['name'])
+            file.write('\n')
+        elif data_if.has_key('bridge'):
+            file.write('auto %s\n' %data_if['bridge'])
+            file.write('iface %s inet static\n' %data_if['bridge'])
+            self.set_address(file, server['data-if'])
+            file.write('    bridge_ports %s\n' %data_if['name'])
+            file.write('\n')
+
+    def set_interface(self, server):
+        print 'Configure interface...'
+        mgmt_if = server['mgmt-if']
+        file = self.sftp.open('interfaces', 'w')
+        file.write('auto lo\n')
+        file.write('iface lo inet loopback\n')
+        file.write('\n')
+        file.write('auto %s\n' %mgmt_if['name'])
+        if mgmt_if.has_key('lxcbr'):
+            file.write('iface %s inet manual\n' %mgmt_if['name'])
+            file.write('\n')
+            file.write('auto %s\n' %mgmt_if['lxcbr'])
+            file.write('iface %s inet static\n' %mgmt_if['lxcbr'])
+            self.set_address(file, mgmt_if, True)
+            file.write('    bridge_ports %s\n' %mgmt_if['name'])
+        elif mgmt_if.has_key('bridge'):
+            file.write('iface %s inet manual\n' %mgmt_if['name'])
+            file.write('\n')
+            file.write('auto %s\n' %mgmt_if['bridge'])
+            file.write('iface %s inet static\n' %mgmt_if['bridge'])
+            self.set_address(file, mgmt_if, True)
+            file.write('    bridge_ports %s\n' %mgmt_if['name'])
+        else:
+            file.write('iface %s inet static\n' %mgmt_if['name'])
+            self.set_address(file, mgmt_if, True)
+        file.write('\n')
+        if server.has_key('data-if'):
+            self.set_data_interface(server, file)
+        file.write('dns-nameservers %s\n' %dns_server)
+        file.write('dns-search %s\n' %dns_search)
+        file.write('\n')
+        file.close()
+        self.restart_interface(server)
+
+    def server_run_cmd(self, server, cmd):
+        self.connect(server)
+        self.exec_cmd(cmd)
+        self.ssh.close()
+        print '%s: Disconnected...\n' %(server['mgmt-if']['address'])
+
+    def setup_server(self, server):
+        self.connect(server)
+        self.set_hosts(server)
+        self.set_ssh_key(server)
+        self.set_apt_source(server)
+        #self.set_proxy(server)
+        #self.disable_ufw(server)
+        self.set_ntp(server)
+        if (server['type'] == 'juju-local'):
+            self.juju_local_install(server)
+        elif (server['type'] == 'kvm'):
+            self.enable_nested_vm(server)
+            self.install_libvirt(server)
+            self.disable_libvirt_default_net(server)
+            if server.has_key('vol-pool'):
+                self.build_vol_pool(server)
+                self.enable_vol_access(server)
+        elif (server['type'] == 'lxc'):
+            self.setup_lxc(server)
+        self.set_interface(server)
+        self.ssh.close()
+        print '%s: Disconnected...\n' %(server['mgmt-if']['address'])
+
+    def allocate_volume(self, hv, server):
+        print 'Allocate volume...'
+        vm_name = server['hostname'].split('-')[1]
+        cmd = 'virsh vol-list %s | grep %s' %(hv['vol-pool']['name'], vm_name)
+        output = self.exec_cmd(cmd)
+        if output:
+            print '    Skip...'
+            return
+        print '    Update...'
+        cmd = 'virsh vol-create-as %s %s %dG' %(hv['vol-pool']['name'],
+                vm_name, vm_spec[server['spec']]['disk'])
+        self.exec_cmd(cmd, True)
+
+    def get_vm_mac(self, server):
+        hv_name, vm_name = server['hostname'].split('-')
+        cmd = 'virsh dumpxml %s | grep -B 2 br-mgmt | grep "mac"' %vm_name
+        output = self.exec_cmd(cmd)
+        return output[0].split('\'')[1]
+
+    def define_vm(self, hv, server):
+        print 'Define VM...'
+        vm_name = server['hostname'].split('-')[1]
+        cmd = 'virsh list --all | grep %s' %vm_name
+        output = self.exec_cmd(cmd)
+        if output:
+            print '    Skip...'
+            return
+        print '    Update...'
+        spec = vm_spec[server['spec']]
+        cmd = 'virt-install --connect qemu:///system --virt-type kvm ' \
+                '--name %s --vcpus %d --ram %d ' \
+                '--disk bus=virtio,vol=%s/%s,cache=none ' \
+                '-w bridge=br-mgmt,model=virtio ' \
+                '-w bridge=br-data,model=virtio ' \
+                '--graphics vnc,listen=0.0.0.0 --noautoconsole ' \
+                '--pxe --boot network,hd' \
+                %(vm_name, spec['cpu'], spec['memory'] * 1024,
+                hv['vol-pool']['name'], vm_name)
+        self.exec_cmd(cmd, True)
+
+    def build_server_json(self, hv, server, mac):
+        print 'Genrating VM JSON...'
+        #hv_name, vm_name = server['hostname'].split('-')
+        #cmd = 'virsh dumpxml %s | grep "mac address"' %vm_name
+        #output = self.exec_cmd(cmd)
+        #mac = output[0].split('\'')[1]
+        s = subnet[server['mgmt-if']['subnet']]
+        file = open('%s.json' %server['hostname'], 'w')
+        file.write('{\n')
+        file.write('    "server": [\n')
+        file.write('        {\n')
+        file.write('            "id": "%s",\n' %server['hostname'])
+        file.write('            "domain": "contrail.juniper.net",\n')
+        file.write('            "password": "c0ntrail123",\n')
+        file.write('            "network": {\n')
+        file.write('                "interfaces": [\n')
+        file.write('                    {\n')
+        file.write('                        "name": "eth0",\n')
+        file.write('                        "mac_address": "%s",\n' %mac)
+        file.write('                        "ip_address": "%s/%s",\n' \
+                %(server['mgmt-if']['address'], s['prefix-len']))
+        file.write('                        "default_gateway": "%s",\n' \
+                %s['gateway'])
+        file.write('                        "dhcp": false\n')
+        file.write('                    }\n')
+        file.write('                ],\n')
+        file.write('                "management_interface": "eth0"\n')
+        file.write('            },\n')
+        file.write('            "parameters": {\n')
+        file.write('                "interface_name": "eth0",\n')
+        file.write('                "partition": "/dev/vda"\n')
+        file.write('            },\n')
+        file.write('            "tag": {\n')
+        file.write('                "rack": "5B4", \n')
+        file.write('                "userid": "taoliu"\n')
+        file.write('            }\n')
+        file.write('        }\n')
+        file.write('    ]\n')
+        file.write('}\n')
+        file.write('\n')
+        file.close()
+
+    def maas_add_vm(self, server, mac):
+        hv_name, vm_name = server['hostname'].split('-')
+        hv = self.get_server(hv_name)
+        maas = self.get_server('5b4s37-vm165')
+        self.connect(maas)
+        print 'Adding VM...'
+        cmd = 'maas admin machines create ' \
+                'architecture=amd64/generic mac_addresses=%s hostname=%s ' \
+                'power_type=virsh power_parameters_power_address=' \
+                'qemu+ssh://%s@%s/system power_parameters_power_id=%s' \
+                %(mac, server['hostname'], hv['username'],
+                hv['data-if']['address'], vm_name)
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        vm = json.load(stdout)
+        sys_id = vm['system_id']
+        print 'Create tag...'
+        cmd = 'maas admin tags create name=%s' %server['hostname']
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        print stdout.read()
+        print 'Associate node to tag...'
+        cmd = 'maas admin tag update-nodes %s add=%s' \
+                %(server['hostname'], sys_id)
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        print stdout.read()
+        self.ssh.close()
+
+    def create_vm(self, server):
+        vm_name = server['hostname'].split('-')[1]
+        hv = self.get_server(server['hypervisor'])
+        if not hv:
+            print 'ERROR: Hypervisor %s is not found!' %hv_name
+            return
+        self.connect(hv)
+        self.allocate_volume(hv, server)
+        self.define_vm(hv, server)
+        mac = self.get_vm_mac(server)
+        self.build_server_json(hv, server, mac)
+        self.ssh.close()
+        print '%s: Disconnected...\n' %(hv['mgmt-if']['address'])
+        #self.maas_add_vm(server, mac)
+
+    def list_vm(self, server):
+        self.connect(server)
+        cmd = 'virsh list --all'
+        self.exec_cmd(cmd, True)
+        self.ssh.close()
+
+    def delete_vm(self, server):
+        hv = self.get_server(server['hypervisor'])
+        if not hv:
+            print 'ERROR: Hypervisor %s is not found!' %hv_name
+            return
+        self.connect(hv)
+        vm_name = server['hostname'].split('-')[1]
+        cmd = 'virsh list | grep %s' %(vm_name)
+        output = self.exec_cmd(cmd)
+        if output:
+            cmd = 'virsh destroy %s' %(vm_name)
+            self.exec_cmd(cmd, True)
+        cmd = 'virsh undefine %s' %(vm_name)
+        self.exec_cmd(cmd, True)
+        cmd = 'virsh vol-delete --pool lvm %s' %(vm_name)
+        self.exec_cmd(cmd, True)
+        self.ssh.close()
+
+    def setup_interface_subnet(self, interface, system_id, subnet, prefix_len,
+            address):
+        for link in interface['links']:
+            print 'Unlink interface subnet...'
+            cmd = 'maas admin interface unlink-subnet %s %s id=%s' \
+                    %(system_id, interface['id'], link['id'])
+            stdin, stdout, stderr = self.ssh.exec_command(cmd)
+            print stdout.read()
+            print 'Set interface subnet...'
+            cmd = 'maas admin interface link-subnet %s %s ' \
+                    'mode=STATIC subnet=%s/%d ip_address=%s' \
+                    %(system_id, interface['id'], subnet, prefix_len, address)
+            stdin, stdout, stderr = self.ssh.exec_command(cmd)
+            print stdout.read()
+
+    def setup_interface(self, server):
+        maas = self.get_server('5b4s37-vm165')
+        self.connect(maas)
+        print 'Setup interface...'
+        print 'Get node...'
+        cmd = 'maas admin nodes read hostname=%s | tail -n +1' \
+                %server['hostname']
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        vm = json.load(stdout)[0]
+        system_id = vm['system_id']
+        print 'Get interface...'
+        cmd = 'maas admin interfaces read %s | tail -n +1' %system_id
+        stdin, stdout, stderr = self.ssh.exec_command(cmd)
+        interface_list = json.load(stdout)
+        for interface in interface_list:
+            if (interface['vlan']['fabric'] == 'fabric-data'):
+                s = subnet[server['data-if']['subnet']]
+                self.setup_interface_subnet(interface, system_id,
+                        server['data-if']['subnet'], s['prefix-len'],
+                        server['data-if']['address'])
+            elif (interface['vlan']['fabric'] == 'fabric-mgmt'):
+                s = subnet[server['mgmt-if']['subnet']]
+                self.setup_interface_subnet(interface, system_id,
+                        server['mgmt-if']['subnet'], s['prefix-len'],
+                        server['mgmt-if']['address'])
+        self.ssh.close()
+
+    def cmd_create_vm(self, args):
+        server = self.get_server(args.name)
+        if not server:
+            return
+        self.create_vm(server)
+
+    def cmd_list_vm(self, args):
+        for server in server_list:
+            if server['type'] != 'kvm':
+                continue
+            self.list_vm(server)
+
+    def cmd_delete_vm(self, args):
+        server = self.get_server(args.name)
+        if not server:
+            return
+        self.delete_vm(server)
+
+    def cmd_image_server(self, args):
+        server = self.get_server(args.server)
+        if not server:
+            return
+        self.server_image(server)
+
+    def cmd_setup_interface(self, args):
+        server = self.get_server(args.server)
+        if not server:
+            return
+        self.setup_interface(server)
+
+    def cmd_setup_server(self, args):
+        server = self.get_server(args.server)
+        if not server:
+            return
+        self.setup_server(server)
+
+    def cmd_build_server(self, args):
+        server = self.get_server(args.server)
+        if not server:
+            return
+        self.server_image(server)
+        print 'Waiting for reboot...'
+        time.sleep(60)
+        self.setup_server(server)
+
+    def cmd_run_cluster(self, args):
+        if args.cluster == 'poc':
+            server_list = ['poc-vm-openstack1', 'poc-vm-contrail1', \
+                    'poc-vm-openstack2', 'poc-vm-contrail2', \
+                    'poc-vm-openstack3', 'poc-vm-contrail3']
+        else:
+            return
+        for server_name in server_list:
+            server = self.get_server(server_name)
+            self.server_run_cmd(server, args.cmd)
+
+    def cmd_build_cluster(self, args):
+        if args.cluster == 'poc':
+            server_list = ['5b4s31-vm150', '5b4s31-vm151',
+                    '5b4s31-vm155', '5b4s31-vm156',
+                    '5b4s31-vm160', '5b4s31-vm161']
+        elif args.cluster == '5b4s37-vm167':
+            server_list = ['5b4s37-vm167', 'a5s167']
+        else:
+            return
+        #for server_name in server_list:
+        #    server = self.get_server(server_name)
+        #    self.server_image(server)
+        #print 'Waiting for reboot...'
+        #time.sleep(60)
+        for server_name in server_list:
+            server = self.get_server(server_name)
+            self.setup_server(server)
+
+    def cmd_test(self, args):
+        server = self.get_server(args.server)
+        #self.connect(server)
+        #self.set_interface(server)
+        #self.ssh.close()
+
+    def parser_init(self):
+        parser = argparse.ArgumentParser()
+
+        subparsers = parser.add_subparsers(metavar = '<command>')
+
+        #### Image server
+        sub_parser = subparsers.add_parser('image-server',
+                help = 'Image server.')
+        sub_parser.set_defaults(func = self.cmd_image_server)
+        sub_parser.add_argument('server', metavar = 'server name',
+                help='The server name')
+
+        #### Setup interface
+        sub_parser = subparsers.add_parser('setup-interface',
+                help = 'Setup server.')
+        sub_parser.set_defaults(func = self.cmd_setup_interface)
+        sub_parser.add_argument('server', metavar = 'server name',
+                help='The server name')
+
+        #### Setup server
+        sub_parser = subparsers.add_parser('setup-server',
+                help = 'Setup server.')
+        sub_parser.set_defaults(func = self.cmd_setup_server)
+        sub_parser.add_argument('server', metavar = 'server name',
+                help='The server name')
+
+        #### Build server
+        sub_parser = subparsers.add_parser('build-server',
+                help = 'Build server.')
+        sub_parser.set_defaults(func = self.cmd_build_server)
+        sub_parser.add_argument('server', metavar = 'server name',
+                help='The server name')
+
+        #### Build cluster
+        sub_parser = subparsers.add_parser('build-cluster',
+                help = 'Build a cluster.')
+        sub_parser.set_defaults(func = self.cmd_build_cluster)
+        sub_parser.add_argument('cluster', metavar = 'cluster name',
+                help='The cluster name')
+
+        #### Run cluster
+        sub_parser = subparsers.add_parser('run-cluster',
+                help = 'Run command on cluster.')
+        sub_parser.set_defaults(func = self.cmd_run_cluster)
+        sub_parser.add_argument('cluster', metavar = 'cluster name',
+                help='The cluster name')
+        sub_parser.add_argument('cmd', metavar = 'command',
+                help='The command to run on cluster')
+
+        #### list-vm
+        sub_parser = subparsers.add_parser('list-vm',
+                help = 'List VM on all hypervisors.')
+        sub_parser.set_defaults(func = self.cmd_list_vm)
+
+        #### create-vm
+        sub_parser = subparsers.add_parser('create-vm',
+                help = 'Create VM.')
+        sub_parser.set_defaults(func = self.cmd_create_vm)
+        sub_parser.add_argument('name', metavar = 'VM name',
+                help='The VM name')
+
+        #### delete-vm
+        sub_parser = subparsers.add_parser('delete-vm',
+                help = 'Delete VM.')
+        sub_parser.set_defaults(func = self.cmd_delete_vm)
+        sub_parser.add_argument('name', metavar = 'VM name',
+                help='The VM name')
+
+        #### Test
+        sub_parser = subparsers.add_parser('test',
+                help = 'Test.')
+        sub_parser.set_defaults(func = self.cmd_test)
+        sub_parser.add_argument('server', metavar = 'server name',
+                help='The server name')
+
+        self.parser = parser
+
+    def main(self):
+        args = self.parser.parse_args()
+        args.func(args)
+        return
+
+
+if __name__ == '__main__':
+    Manager().main()
+
