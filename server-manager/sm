@@ -19,9 +19,6 @@ class Manager(object):
         else:
             print 'ERROR: Server %s is not found!' %(name)
 
-    def server_image(self, server):
-        pass
-
     def connect(self, server):
         addr = server['mgmt-if']['address']
         self.ssh = paramiko.SSHClient()
@@ -39,6 +36,13 @@ class Manager(object):
                 time.sleep(10)
         print '\n%s: Connected.' %(addr)
         self.sftp = self.ssh.open_sftp()
+
+    def shell_cmd(self, cmd, print_output = False):
+        output = subprocess.check_output(cmd, shell = True)
+        if print_output:
+            print output
+            return
+        return output
 
     def exec_cmd(self, cmd, print_output = False):
         stdin, stdout, stderr = self.ssh.exec_command(cmd)
@@ -412,6 +416,16 @@ class Manager(object):
         self.ssh.close()
         print '%s: Disconnected...\n' %(server['mgmt-if']['address'])
 
+    def image_server(self, server, image):
+        cmd = '/cs-shared/server-manager/client/server-manager ' \
+                'reimage --no_confirm --server_id %s %s' \
+                %(server['hostname'], image)
+        self.shell_cmd(cmd, True)
+        if (server['type'] == 'vm'):
+            print 'Wait 30 seconds for server manager to get ready...'
+            time.sleep(30)
+            self.reboot_vm(server)
+
     def setup_server(self, server):
         self.connect(server)
         self.set_hosts(server)
@@ -448,12 +462,6 @@ class Manager(object):
                 vm_name, vm_spec[server['spec']]['disk'])
         self.exec_cmd(cmd, True)
 
-    def get_vm_mac(self, server):
-        hv_name, vm_name = server['hostname'].split('-')
-        cmd = 'virsh dumpxml %s | grep -B 2 br-mgmt | grep "mac"' %vm_name
-        output = self.exec_cmd(cmd)
-        return output[0].split('\'')[1]
-
     def define_vm(self, hv, server):
         print 'Define VM...'
         vm_name = server['hostname'].split('-')[1]
@@ -475,12 +483,17 @@ class Manager(object):
                 hv['vol-pool']['name'], vm_name)
         self.exec_cmd(cmd, True)
 
-    def build_server_json(self, hv, server, mac):
+        cmd = 'virsh dumpxml %s | grep -B 2 br-mgmt | grep "mac"' %vm_name
+        output = self.exec_cmd(cmd)
+        return output[0].split('\'')[1]
+
+    def build_server_json(self, hv, server, mac = None):
         print 'Genrating VM JSON...'
-        #hv_name, vm_name = server['hostname'].split('-')
-        #cmd = 'virsh dumpxml %s | grep "mac address"' %vm_name
-        #output = self.exec_cmd(cmd)
-        #mac = output[0].split('\'')[1]
+        if not mac:
+            vm_name = server['hostname'].split('-')
+            cmd = 'virsh dumpxml %s | grep -B 2 br-mgmt | grep "mac"' %vm_name
+            output = self.exec_cmd(cmd)
+            mac = output[0].split('\'')[1]
         s = subnet[server['mgmt-if']['subnet']]
         file = open('%s.json' %server['hostname'], 'w')
         file.write('{\n')
@@ -508,7 +521,6 @@ class Manager(object):
         file.write('                "partition": "/dev/vda"\n')
         file.write('            },\n')
         file.write('            "tag": {\n')
-        file.write('                "rack": "5B4", \n')
         file.write('                "userid": "taoliu"\n')
         file.write('            }\n')
         file.write('        }\n')
@@ -543,6 +555,19 @@ class Manager(object):
         print stdout.read()
         self.ssh.close()
 
+    def reboot_vm(self, server):
+        vm_name = server['hostname'].split('-')[1]
+        hv = self.get_server(server['hypervisor'])
+        if not hv:
+            print 'ERROR: Hypervisor %s is not found!' %hv_name
+            return
+        self.connect(hv)
+        cmd = 'virsh destroy %s' %(vm_name)
+        self.exec_cmd(cmd, True)
+        cmd = 'virsh start %s' %(vm_name)
+        self.exec_cmd(cmd, True)
+        self.ssh.close()
+
     def create_vm(self, server):
         vm_name = server['hostname'].split('-')[1]
         hv = self.get_server(server['hypervisor'])
@@ -551,11 +576,12 @@ class Manager(object):
             return
         self.connect(hv)
         self.allocate_volume(hv, server)
-        self.define_vm(hv, server)
-        mac = self.get_vm_mac(server)
+        mac = self.define_vm(hv, server)
         self.build_server_json(hv, server, mac)
         self.ssh.close()
-        print '%s: Disconnected...\n' %(hv['mgmt-if']['address'])
+        cmd = '/cs-shared/server-manager/client/server-manager ' \
+                'add server --file_name %s.json' %(server['hostname'])
+        shell_cmd(cmd, True)
         #self.maas_add_vm(server, mac)
 
     def list_vm(self, server):
@@ -581,6 +607,9 @@ class Manager(object):
         cmd = 'virsh vol-delete --pool lvm %s' %(vm_name)
         self.exec_cmd(cmd, True)
         self.ssh.close()
+        cmd = '/cs-shared/server-manager/client/server-manager ' \
+                'delete server --server_id %s' %(server['hostname'])
+        self.shell_cmd(cmd, True)
 
     def setup_interface_subnet(self, interface, system_id, subnet, prefix_len,
             address):
@@ -643,10 +672,10 @@ class Manager(object):
         self.delete_vm(server)
 
     def cmd_image_server(self, args):
-        server = self.get_server(args.server)
+        server = self.get_server(args.name)
         if not server:
             return
-        self.server_image(server)
+        self.image_server(server, args.image)
 
     def cmd_setup_interface(self, args):
         server = self.get_server(args.server)
@@ -709,19 +738,21 @@ class Manager(object):
 
         subparsers = parser.add_subparsers(metavar = '<command>')
 
-        #### Image server
-        sub_parser = subparsers.add_parser('image-server',
-                help = 'Image server.')
-        sub_parser.set_defaults(func = self.cmd_image_server)
-        sub_parser.add_argument('server', metavar = 'server name',
-                help='The server name')
-
         #### Setup interface
         sub_parser = subparsers.add_parser('setup-interface',
                 help = 'Setup server.')
         sub_parser.set_defaults(func = self.cmd_setup_interface)
         sub_parser.add_argument('server', metavar = 'server name',
                 help='The server name')
+
+        #### image-server
+        sub_parser = subparsers.add_parser('image-server',
+                help = 'Image server.')
+        sub_parser.set_defaults(func = self.cmd_image_server)
+        sub_parser.add_argument('name', metavar = 'server name',
+                help='The server name')
+        sub_parser.add_argument('image', metavar = 'Image name',
+                help='The image name')
 
         #### Setup server
         sub_parser = subparsers.add_parser('setup-server',
