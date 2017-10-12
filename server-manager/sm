@@ -48,6 +48,7 @@ class Manager(object):
         stdin, stdout, stderr = self.ssh.exec_command(cmd)
         if print_output:
             print stdout.read()
+            print stderr.read()
             return
         lines = []
         while True:
@@ -490,7 +491,7 @@ class Manager(object):
     def build_server_json(self, hv, server, mac = None):
         print 'Genrating VM JSON...'
         if not mac:
-            vm_name = server['hostname'].split('-')
+            vm_name = server['hostname'].split('-')[1]
             cmd = 'virsh dumpxml %s | grep -B 2 br-mgmt | grep "mac"' %vm_name
             output = self.exec_cmd(cmd)
             mac = output[0].split('\'')[1]
@@ -581,7 +582,7 @@ class Manager(object):
         self.ssh.close()
         cmd = '/cs-shared/server-manager/client/server-manager ' \
                 'add server --file_name %s.json' %(server['hostname'])
-        shell_cmd(cmd, True)
+        self.shell_cmd(cmd, True)
         #self.maas_add_vm(server, mac)
 
     def list_vm(self, server):
@@ -604,7 +605,7 @@ class Manager(object):
             self.exec_cmd(cmd, True)
         cmd = 'virsh undefine %s' %(vm_name)
         self.exec_cmd(cmd, True)
-        cmd = 'virsh vol-delete --pool lvm %s' %(vm_name)
+        cmd = 'virsh vol-delete --pool %s %s' %(hv['vol-pool']['name'], vm_name)
         self.exec_cmd(cmd, True)
         self.ssh.close()
         cmd = '/cs-shared/server-manager/client/server-manager ' \
