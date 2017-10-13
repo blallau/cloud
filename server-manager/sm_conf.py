@@ -27,6 +27,18 @@ vm_spec = {
 username = 'root'
 password = 'c0ntrail123'
 
+cluster_list = \
+[
+    {
+        'name': 'poc1',
+        'server': ['5b4-vm150', '5b4-vm151', '5b4-vm152',
+                   '5b4-vm155', '5b4-vm156'],
+        'image': 'ubuntu-16.04.2-vm-tony'},
+    {
+        'name': 'poc2',
+        'server': ['5b4-vm160', '5b4-vm161'],
+        'image': 'ubuntu-16.04.2-vm-tony'}
+]
 
 server_list = \
 [
@@ -155,7 +167,7 @@ server_list = \
         'hostname': '5b4-vm150',
         'type': 'vm',
         'hypervisor': '5b4s31',
-        'spec': 'large',
+        'spec': 'small',
         'mgmt-if': {
             'name': 'ens3',
             'address': '10.87.68.150',
@@ -183,12 +195,38 @@ server_list = \
         'hypervisor': '5b4s31',
         'spec': 'large',
         'mgmt-if': {
-            'name': 'eth0',
+            'name': 'ens3',
             'address': '10.87.68.152',
             'subnet': '10.87.68.128'},
         'data-if': {
-            'name': 'eth1',
+            'name': 'ens4',
             'address': '172.16.0.152',
+            'subnet': '172.16.0.0'}},
+    {
+        'hostname': '5b4-vm153',
+        'type': 'vm',
+        'hypervisor': '5b4s31',
+        'spec': 'large',
+        'mgmt-if': {
+            'name': 'ens3',
+            'address': '10.87.68.153',
+            'subnet': '10.87.68.128'},
+        'data-if': {
+            'name': 'ens4',
+            'address': '172.16.0.153',
+            'subnet': '172.16.0.0'}},
+    {
+        'hostname': '5b4-vm154',
+        'type': 'vm',
+        'hypervisor': '5b4s31',
+        'spec': 'large',
+        'mgmt-if': {
+            'name': 'ens3',
+            'address': '10.87.68.154',
+            'subnet': '10.87.68.128'},
+        'data-if': {
+            'name': 'ens4',
+            'address': '172.16.0.154',
             'subnet': '172.16.0.0'}},
     {
         'hostname': '5b4-vm155',
@@ -207,7 +245,7 @@ server_list = \
         'hostname': '5b4-vm156',
         'type': 'vm',
         'hypervisor': '5b4s32',
-        'spec': 'large',
+        'spec': 'medium',
         'mgmt-if': {
             'name': 'ens3',
             'address': '10.87.68.156',
@@ -222,13 +260,38 @@ server_list = \
         'hypervisor': '5b4s32',
         'spec': 'large',
         'mgmt-if': {
-            'name': 'eth0',
+            'name': 'ens3',
             'address': '10.87.68.157',
             'subnet': '10.87.68.128'},
         'data-if': {
-            'name': 'eth1',
-            'lxcbr': 'lxcbr1',
+            'name': 'ens4',
             'address': '172.16.0.157',
+            'subnet': '172.16.0.0'}},
+    {
+        'hostname': '5b4-vm158',
+        'type': 'vm',
+        'hypervisor': '5b4s32',
+        'spec': 'large',
+        'mgmt-if': {
+            'name': 'ens3',
+            'address': '10.87.68.158',
+            'subnet': '10.87.68.128'},
+        'data-if': {
+            'name': 'ens4',
+            'address': '172.16.0.158',
+            'subnet': '172.16.0.0'}},
+    {
+        'hostname': '5b4-vm159',
+        'type': 'vm',
+        'hypervisor': '5b4s32',
+        'spec': 'large',
+        'mgmt-if': {
+            'name': 'ens3',
+            'address': '10.87.68.159',
+            'subnet': '10.87.68.128'},
+        'data-if': {
+            'name': 'ens4',
+            'address': '172.16.0.159',
             'subnet': '172.16.0.0'}},
     {
         'hostname': '5b4-vm160',
@@ -262,13 +325,11 @@ server_list = \
         'hypervisor': '5b4s33',
         'spec': 'large',
         'mgmt-if': {
-            'name': 'eth0',
-            'lxcbr': 'lxcbr0',
+            'name': 'ens3',
             'address': '10.87.68.162',
             'subnet': '10.87.68.128'},
         'data-if': {
-            'name': 'eth1',
-            'lxcbr': 'lxcbr1',
+            'name': 'ens4',
             'address': '172.16.0.162',
             'subnet': '172.16.0.0'}},
     {
