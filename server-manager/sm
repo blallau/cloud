@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+import sys
+sys.path.insert(0, '/users/taoliu/git/cloud/server-manager/sandbox')
+
 import time
 import argparse
 import subprocess
@@ -19,10 +22,18 @@ class Manager(object):
         else:
             print 'ERROR: Server %s is not found!' %(name)
 
+    def get_cluster(self, name):
+        for cluster in cluster_list:
+            if cluster['name'] == name:
+                return cluster
+        else:
+            print 'ERROR: Cluster %s is not found!' %(name)
+
     def connect(self, server):
         addr = server['mgmt-if']['address']
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        paramiko.util.log_to_file("paramiko.log")
         count = 0
         while True:
             print 'Connecting to server %s...%d' %(addr, count)
@@ -423,8 +434,8 @@ class Manager(object):
                 %(server['hostname'], image)
         self.shell_cmd(cmd, True)
         if (server['type'] == 'vm'):
-            print 'Wait 30 seconds for server manager to get ready...'
-            time.sleep(30)
+            print 'Wait 20 seconds for server manager to get ready...'
+            time.sleep(20)
             self.reboot_vm(server)
 
     def setup_server(self, server):
@@ -710,11 +721,18 @@ class Manager(object):
             server = self.get_server(server_name)
             self.server_run_cmd(server, args.cmd)
 
+    def cmd_image_cluster(self, args):
+        cluster = self.get_cluster(args.name)
+        if not cluster:
+            return
+        for server_name in cluster['server']:
+            server = self.get_server(server_name)
+            self.image_server(server, cluster['image'])
+
     def cmd_build_cluster(self, args):
         if args.cluster == 'poc':
-            server_list = ['5b4s31-vm150', '5b4s31-vm151',
-                    '5b4s31-vm155', '5b4s31-vm156',
-                    '5b4s31-vm160', '5b4s31-vm161']
+            server_list = ['5b4-vm150', '5b4-vm151', '5b4-vm152',
+                    '5b4-vm155', '5b4-vm156']
         elif args.cluster == '5b4s37-vm167':
             server_list = ['5b4s37-vm167', 'a5s167']
         else:
@@ -768,6 +786,13 @@ class Manager(object):
         sub_parser.set_defaults(func = self.cmd_build_server)
         sub_parser.add_argument('server', metavar = 'server name',
                 help='The server name')
+
+        #### Image cluster
+        sub_parser = subparsers.add_parser('image-cluster',
+                help = 'Image a cluster.')
+        sub_parser.set_defaults(func = self.cmd_image_cluster)
+        sub_parser.add_argument('name', metavar = 'cluster name',
+                help='The cluster name')
 
         #### Build cluster
         sub_parser = subparsers.add_parser('build-cluster',
