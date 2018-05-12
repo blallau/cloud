@@ -269,11 +269,10 @@ On Ubuntu Xenial, need to apply this patch manually. https://github.com/libguest
 Patch the file and clean up existing guestfs.
 ```
 cd /usr/lib/x86_64-linux-gnu/guestfs/supermin.d
-tar xzf init.tar.gz
-# patch
-rm init.tar.gz
-tar -cf init.tar init
-gizp init.tar
+tar -xzf init.tar.gz
+# patch init
+tar -czf init.tar.gz init
+rm init
 rm -fr /var/tmp/.guestfs-*
 ```
 
