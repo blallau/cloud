@@ -1,0 +1,288 @@
+#!/bin/bash
+
+declare -A mgmt_address
+declare -A mgmt_netmask
+declare -A mgmt_gateway
+declare -A data_address
+declare -A data_netmask
+
+mgmt_address[b7vm61]=10.84.29.61
+mgmt_netmask[b7vm61]=255.255.255.0
+mgmt_gateway[b7vm61]=10.84.29.254
+data_address[b7vm61]=192.168.2.61
+data_netmask[b7vm61]=255.255.255.0
+
+mgmt_address[b7vm62]=10.84.29.62
+mgmt_netmask[b7vm62]=255.255.255.0
+mgmt_gateway[b7vm62]=10.84.29.254
+data_address[b7vm62]=192.168.2.62
+data_netmask[b7vm62]=255.255.255.0
+
+mgmt_address[b7vm63]=10.84.29.63
+mgmt_netmask[b7vm63]=255.255.255.0
+mgmt_gateway[b7vm63]=10.84.29.254
+data_address[b7vm63]=192.168.2.63
+data_netmask[b7vm63]=255.255.255.0
+
+mgmt_address[b7vm65]=10.84.29.65
+mgmt_netmask[b7vm65]=255.255.255.0
+mgmt_gateway[b7vm65]=10.84.29.254
+data_address[b7vm65]=192.168.2.65
+data_netmask[b7vm65]=255.255.255.0
+
+mgmt_address[b7vm66]=10.84.29.66
+mgmt_netmask[b7vm66]=255.255.255.0
+mgmt_gateway[b7vm66]=10.84.29.254
+data_address[b7vm66]=192.168.2.66
+data_netmask[b7vm66]=255.255.255.0
+
+mgmt_address[b7vm67]=10.84.29.67
+mgmt_netmask[b7vm67]=255.255.255.0
+mgmt_gateway[b7vm67]=10.84.29.254
+data_address[b7vm67]=192.168.2.67
+data_netmask[b7vm67]=255.255.255.0
+
+mgmt_address[b7vm68]=10.84.29.68
+mgmt_netmask[b7vm68]=255.255.255.0
+mgmt_gateway[b7vm68]=10.84.29.254
+data_address[b7vm68]=192.168.2.68
+data_netmask[b7vm68]=255.255.255.0
+
+mgmt_address[b7vm69]=10.84.29.69
+mgmt_netmask[b7vm69]=255.255.255.0
+mgmt_gateway[b7vm69]=10.84.29.254
+data_address[b7vm69]=192.168.2.69
+data_netmask[b7vm69]=255.255.255.0
+
+mgmt_address[b7vm70]=10.84.29.70
+mgmt_netmask[b7vm70]=255.255.255.0
+mgmt_gateway[b7vm70]=10.84.29.254
+data_address[b7vm70]=192.168.2.70
+data_netmask[b7vm70]=255.255.255.0
+
+img_file_centos=/var/tmp/CentOS-7-x86_64-GenericCloud-1711.qcow2
+img_file_ubuntu=/var/tmp/xenial-server-cloudimg-i386-disk1.img
+
+create_config_common()
+{
+    name=$1
+
+    cat << __EOF__ > hosts
+127.0.0.1 localhost.contrail.juniper.net localhost
+${mgmt_address[$name]} $name.contrail.juniper.net $name
+__EOF__
+
+    cat << __EOF__ > ntp.conf
+driftfile /var/lib/ntp/drift
+server 10.84.5.100
+restrict 127.0.0.1
+restrict -6 ::1
+includefile /etc/ntp/crypto/pw
+keys /etc/ntp/keys
+__EOF__
+
+    cat << __EOF__ > authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCxx+JfOb56uF2/4USg+4C6aVEmxRp37VC31uMdiNV65EMUmoyQoPLoVq1SBkbS1H+Bo24YWRisddTXvEGPxE7y92xvfm7xui/8QSjeC2LwaoslChe54zggwg3pkFexU/jD0cnsmBurVDKUCoKXMLILUsDzNSd7x8wgKhoygzBmHQCfzzlvGfeYzCxrJXOahW+gisYYZz4rN7kVGp3IpmhOxiVsB6+ylZMRX2l+jP09CZLRpRa72M6ampJBqHocG3uyVP5Ym9Ehed+Ag3PmyMD9N08P7rSbxaxdvCS1EJemeVSpGDAi11K9xnsCs+6Wv2M0Q1BmSTHUDQtv+ZEji7Oj root@vm100
+__EOF__
+}
+
+create_config_centos()
+{
+    name=$1
+
+    cat << __EOF__ > ifcfg-eth0
+DEVICE=eth0
+TYPE=Ethernet
+BOOTPROTO=static
+ONBOOT=yes
+IPADDR=${mgmt_address[$name]}
+NETMASK=${mgmt_netmask[$name]}
+GATEWAY=${mgmt_gateway[$name]}
+DNS1=10.84.5.100
+DNS2=172.21.200.60
+DOMAIN="contrail.juniper.net juniper.net englab.juniper.net"
+__EOF__
+
+    cat << __EOF__ > ifcfg-eth1
+DEVICE=eth1
+TYPE=Ethernet
+BOOTPROTO=static
+ONBOOT=yes
+IPADDR=${data_address[$name]}
+NETMASK=${data_netmask[$name]}
+__EOF__
+}
+
+create_config_ubuntu()
+{
+    name=$1
+
+    cat << __EOF__ > interfaces
+auto lo
+iface lo inet loopback
+
+auto ens3
+iface ens3 inet static
+    address ${mgmt_address[$name]}
+    netmask ${mgmt_netmask[$name]}
+    gateway ${mgmt_gateway[$name]}
+
+auto ens4
+iface ens4 inet static
+    address ${data_address[$name]}
+    netmask ${data_netmask[$name]}
+
+dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-search contrail.juniper.net juniper.net jnpr.net
+__EOF__
+}
+
+clean_config()
+{
+    rm -f hosts
+    rm -f ntp.conf
+    rm -f authorized_keys
+    rm -f ifcfg-eth0
+    rm -f ifcfg-eth1
+    rm -f interfaces
+}
+
+create_volume()
+{
+    name=$1
+    size=$2
+
+    virsh vol-create-as lv $name ${size}G
+}
+
+customize_centos()
+{
+    name=$1
+
+    create_config_common $name
+    create_config_centos $name
+
+    virt-customize \
+        -a /dev/lv/$name \
+        --hostname $name \
+        --root-password password:c0ntrail123 \
+        --upload hosts:/etc \
+        --run-command 'sed -i "s/#UseDNS yes/UseDNS no/g" /etc/ssh/sshd_config' \
+        --run-command 'mkdir -p /root/.ssh' \
+        --upload authorized_keys:/root/.ssh \
+        --run-command 'chmod 600 /root/.ssh/authorized_keys' \
+        --upload ifcfg-eth0:/etc/sysconfig/network-scripts \
+        --upload ifcfg-eth1:/etc/sysconfig/network-scripts \
+        --run-command 'yum remove -y cloud-init' \
+        --run-command 'systemctl disable chronyd' \
+        --install 'ntp' \
+        --upload ntp.conf:/etc \
+        --run-command 'systemctl enable ntpd' \
+        --selinux-relabel
+
+    clean_config
+}
+
+customize_ubuntu()
+{
+    name=$1
+
+    create_config_common $name
+    create_config_ubuntu $name
+
+    virt-customize \
+        -a /dev/lv/$name \
+        --hostname $name \
+        --root-password password:c0ntrail123 \
+        --upload hosts:/etc \
+        --upload interfaces:/etc/network \
+        --run-command 'apt-get purge -y cloud-init' \
+        --run-command 'dpkg-reconfigure openssh-server' \
+        --run-command 'sed -i "s/PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config' \
+        --run-command 'sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config' \
+        --run-command 'mkdir -p /root/.ssh' \
+        --upload authorized_keys:/root/.ssh \
+        --run-command 'chmod 600 /root/.ssh/authorized_keys' \
+        --install 'ntp' \
+        --upload ntp.conf:/etc \
+        --run-command 'systemctl enable ntp'
+
+    clean_config
+}
+
+cmd_create_vm()
+{
+    name=$1
+    dist=$2
+    size=$3
+
+    create_volume $name $size
+
+    if [[ $dist == "centos" ]]; then
+        virt-resize $img_file_centos /dev/lv/$name --expand /dev/sda1
+        customize_centos $name
+    elif [[ $dist == "ubuntu" ]]; then
+        virt-resize $img_file_ubuntu /dev/lv/$name --expand /dev/sda1
+        customize_ubuntu $name
+    else
+        echo "ERROR: Unknown distribution $dist!"
+        exit 0
+    fi
+
+    virt-install --connect qemu:///system --virt-type kvm \
+        --name $1 --vcpus 10 --ram 32768 \
+        --disk bus=virtio,vol=lv/$name,cache=none \
+        -w bridge=br0,model=virtio \
+        -w bridge=br1,model=virtio \
+        --graphics vnc,listen=0.0.0.0 --noautoconsole \
+        --boot hd
+}
+
+cmd_delete_vm()
+{
+    name=$1
+
+    virsh destroy $name
+    virsh undefine $name
+    virsh vol-delete $name lv
+}
+
+help()
+{
+  echo "help"
+  echo "$0 create-vm <name> [centos | ubuntu] <disk size in GB>"
+  echo "    For example"
+  echo "    $0 create-vm controller centos 150"
+  echo "$0 delete-vm <name>"
+}
+
+main()
+{
+    while [ "$1" != "" ]
+    do
+        case $1 in
+            -h | --help)
+                help
+                exit 0
+                ;;
+            create-vm)
+                shift
+                cmd_create_vm "$@"
+                exit 0
+                ;;
+            delete-vm)
+                shift
+                cmd_delete_vm "$@"
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown command \"$1\""
+                ;;
+        esac
+        shift
+    done
+}
+
+main "$@"
+exit 0
+
