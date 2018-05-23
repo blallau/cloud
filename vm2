@@ -1,0 +1,274 @@
+#!/bin/sh
+
+# br-corp: 10.84.29.96 - 10.84.29.111
+# br-local: 192.168.1.0/24
+
+public_mac_list="
+    96=52:54:00:76:a5:2b
+    97=52:54:00:52:19:86
+    98=52:54:00:18:46:60
+    99=52:54:00:84:b2:37
+    100=52:54:00:36:97:e0
+    101=52:54:00:91:28:72
+    102=52:54:00:a7:84:6f
+    103=52:54:00:c2:39:57
+    104=52:54:00:77:a6:2c
+    105=52:54:00:53:1a:87
+    106=52:54:00:19:47:61
+    107=52:54:00:85:b3:38
+    108=52:54:00:37:98:e1
+    109=52:54:00:92:29:73
+    110=52:54:00:a8:85:70
+    111=52:54:00:c3:3a:58"
+
+mgmt_mac_list="
+    96=52:54:00:76:a5:1b
+    97=52:54:00:52:19:76
+    98=52:54:00:18:46:50
+    99=52:54:00:84:b2:27
+    100=52:54:00:36:97:d0
+    101=52:54:00:91:28:62
+    102=52:54:00:a7:84:5f
+    103=52:54:00:c2:39:47
+    104=52:54:00:77:a6:1c
+    105=52:54:00:53:1a:77
+    106=52:54:00:19:47:51
+    107=52:54:00:85:b3:28
+    108=52:54:00:37:98:d1
+    109=52:54:00:92:29:63
+    110=52:54:00:a8:85:60
+    111=52:54:00:c3:3a:48"
+
+mac_get()
+{
+    for i in $mgmt_mac_list
+    do
+      mac_idx=`expr index $i =`
+      if [ $1 == ${i:0:mac_idx-1} ]
+      then
+        mgmt_mac=${i:mac_idx}
+      fi
+    done
+
+    for i in $public_mac_list
+    do
+      mac_idx=`expr index $i =`
+      if [ $1 == ${i:0:mac_idx-1} ]
+      then
+        public_mac=${i:mac_idx}
+      fi
+    done
+}
+
+vm_delete()
+{
+    local vm_id=96
+
+    while [ $# -gt 0 ]
+    do
+        case "$1" in
+            --id)
+                vm_id=$2
+                shift
+                ;;
+            *)
+                print_usage
+                ;;
+        esac
+        shift
+    done
+    cobbler system remove --name vm$vm_id
+}
+
+vm_reimage()
+{
+    local vm_id=96
+
+    while [ $# -gt 0 ]
+    do
+        case "$1" in
+            --id)
+                vm_id=$2
+                shift
+                ;;
+            *)
+                print_usage
+                ;;
+        esac
+        shift
+    done
+    cobbler system edit --name vm$vm_id --netboot True
+}
+
+vm_add()
+{
+    local vm_id=96
+    local vm_os=ubuntu
+
+    while [ $# -gt 0 ]
+    do
+        case "$1" in
+            --id)
+                vm_id=$2
+                shift
+                ;;
+            --os)
+                vm_os=$2
+                shift
+                ;;
+            *)
+                print_usage
+                ;;
+        esac
+        shift
+    done
+
+    mac_get $vm_id
+    cobbler system add --name vm$vm_id --hostname vm$vm_id --profile $vm_os
+    cobbler system edit --name vm$vm_id --interface eth0 --mac $mgmt_mac --ip-address 192.168.1.$1 --management True --gateway 192.168.1.254
+    cobbler system edit --name vm$vm_id --interface eth1 --mac $public_mac --ip-address 10.84.29.$1 --netmask 255.255.255.0 --gateway 10.84.29.254 --static True
+}
+
+vm_define()
+{
+    local vm_id=96
+    local vm_name=ubuntu
+    local vm_cpu=1
+    local vm_memory=1024
+
+    while [ $# -gt 0 ]
+    do
+        case "$1" in
+            --id)
+                vm_id=$2
+                shift
+                ;;
+            --name)
+                vm_name=$2
+                shift
+                ;;
+            --cpu)
+                vm_cpu=$2
+                shift
+                ;;
+            --memory)
+                let "vm_memory = $2 * 1024"
+                shift
+                ;;
+            *)
+                print_usage
+                ;;
+        esac
+        shift
+    done
+
+    vm_image=/var/cloud/libvirt/vm-pool/vm$vm_id.img
+
+    mac_get $vm_id
+
+    if [ ! -e $vm_image ]
+    then
+        qemu-img create -f raw $vm_image 40G
+    fi
+
+    cat << __EOT__ > vm$vm_id-$vm_name.xml
+<domain type='kvm'>
+  <name>vm$vm_id-$vm_name</name>
+  <memory unit='Mb'>$vm_memory</memory>
+  <cpu mode='custom' match='exact'>
+    <model fallback='allow'>Westmere</model>
+    <vendor>Intel</vendor>
+    <feature policy='require' name='vmx'/>
+  </cpu>
+  <vcpu placement='static'>$vm_cpu</vcpu>
+  <os>
+    <type arch='x86_64'>hvm</type>
+    <boot dev='network'/>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none'/>
+      <source file='$vm_image'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <interface type='bridge'>
+      <mac address='$mgmt_mac'/>
+      <source bridge='br-local'/>
+      <model type='virtio'/>
+    </interface>
+    <interface type='bridge'>
+      <mac address='$public_mac'/>
+      <source bridge='br-corp'/>
+      <model type='virtio'/>
+    </interface>
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'>
+      <listen type='address' address='0.0.0.0'/>
+    </graphics>
+    <video>
+      <model type='cirrus' vram='9216' heads='1'/>
+    </video>
+    <memballoon model='virtio'>
+    </memballoon>
+  </devices>
+</domain>
+__EOT__
+
+}
+
+print_usage()
+{
+    echo "Usage:"
+    echo "$0 define --id <id> --name <name> --cpu <CPU> --memory <memory>(GB)"
+    echo "eg. $0 define --id 96 --name controller1 --cpu 2 --memory 16"
+    echo "$0 add --id <id> --os [ centos7 | centos65 | ubuntu ]"
+    echo "eg. $0 add --id 96 --os centos7"
+    echo "$0 delete --id <id>"
+    echo "$0 reimage --id <id>"
+    echo ""
+    exit 0
+}
+
+main()
+{
+    case "$1" in
+        define)
+            shift
+            vm_define "$@"
+            ;;
+        add)
+            shift
+            vm_add "$@"
+            ;;
+        delete)
+            shift
+            vm_delete "$@"
+            ;;
+        reimage)
+            shift
+            vm_reimage "$@"
+            ;;
+        *)
+            print_usage
+            ;;
+    esac
+}
+
+main "$@"
+exit 0
+
