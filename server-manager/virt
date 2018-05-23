@@ -60,8 +60,10 @@ mgmt_gateway[b7vm70]=10.84.29.254
 data_address[b7vm70]=192.168.2.70
 data_netmask[b7vm70]=255.255.255.0
 
-img_file_centos=/var/tmp/CentOS-7-x86_64-GenericCloud-1711.qcow2
-img_file_ubuntu=/var/tmp/xenial-server-cloudimg-i386-disk1.img
+#img_file_centos=/var/tmp/CentOS-7-x86_64-GenericCloud-1802.qcow2
+img_file_centos=/var/tmp/CentOS-7-x86_64-GenericCloud-1511.qcow2
+#img_file_ubuntu=/var/tmp/xenial-server-cloudimg-amd64-disk1.img
+img_file_ubuntu=/var/tmp/trusty-server-cloudimg-amd64-disk1.img
 
 create_config_common()
 {
@@ -198,8 +200,8 @@ customize_ubuntu()
         --upload interfaces:/etc/network \
         --run-command 'apt-get purge -y cloud-init' \
         --run-command 'dpkg-reconfigure openssh-server' \
-        --run-command 'sed -i "s/PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config' \
-        --run-command 'sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config' \
+        --run-command 'sed -i "s/^PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config' \
+        --run-command 'sed -i "s/^PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config' \
         --run-command 'mkdir -p /root/.ssh' \
         --upload authorized_keys:/root/.ssh \
         --run-command 'chmod 600 /root/.ssh/authorized_keys' \
