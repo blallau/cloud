@@ -1,180 +1,414 @@
-#!/bin/sh
+#!/bin/bash
 
-# br-public: 10.84.23.96 - 10.84.23.127
-# br-mgmt: 10.1.1.0/24
+img_path=/var/lib/libvirt/images
+img_file_centos=$img_path/CentOS-7-x86_64-GenericCloud-1511.qcow2
+#img_file_centos=$img_path/CentOS-7-x86_64-GenericCloud-1802.qcow2
+#img_file_ubuntu=$img_path/trusty-server-cloudimg-amd64-disk1.img
+img_file_ubuntu=$img_path/xenial-server-cloudimg-amd64-disk1.img
+img_file_redhat=$img_path/rhel-server-7.5-x86_64-kvm.qcow2
 
-public_mac_list="
-    vm96=52:54:00:76:a5:2b
-    vm97=52:54:00:52:19:86
-    vm98=52:54:00:18:46:60
-    vm99=52:54:00:84:b2:37
-    vm100=52:54:00:36:97:e0
-    vm101=52:54:00:91:28:72
-    vm102=52:54:00:a7:84:6f
-    vm103=52:54:00:c2:39:57
-    vm104=52:54:00:77:a6:2c
-    vm105=52:54:00:53:1a:87
-    vm106=52:54:00:19:47:61
-    vm107=52:54:00:85:b3:38
-    vm108=52:54:00:37:98:e1
-    vm109=52:54:00:92:29:73
-    vm110=52:54:00:a8:85:70
-    vm111=52:54:00:c3:3a:58"
+declare -A cpu
+declare -A memory
+declare -A disk
+declare -A mgmt_address
+declare -A mgmt_netmask
+declare -A mgmt_gateway
+declare -A data_address
+declare -A data_netmask
 
-mgmt_mac_list="
-    vm96=52:54:00:76:a5:1b
-    vm97=52:54:00:52:19:76
-    vm98=52:54:00:18:46:50
-    vm99=52:54:00:84:b2:27
-    vm100=52:54:00:36:97:d0
-    vm101=52:54:00:91:28:62
-    vm102=52:54:00:a7:84:5f
-    vm103=52:54:00:c2:39:47
-    vm104=52:54:00:77:a6:1c
-    vm105=52:54:00:53:1a:77
-    vm106=52:54:00:19:47:51
-    vm107=52:54:00:85:b3:28
-    vm108=52:54:00:37:98:d1
-    vm109=52:54:00:92:29:63
-    vm110=52:54:00:a8:85:60
-    vm111=52:54:00:c3:3a:48"
+cpu[b7vm61]=8
+memory[b7vm61]=65536
+disk[b7vm61]=200G
+mgmt_address[b7vm61]=10.84.29.61
+mgmt_netmask[b7vm61]=255.255.255.0
+mgmt_gateway[b7vm61]=10.84.29.254
+data_address[b7vm61]=192.168.2.61
+data_netmask[b7vm61]=255.255.255.0
 
-mac_get()
+cpu[b7vm62]=8
+memory[b7vm62]=65536
+disk[b7vm62]=300G
+mgmt_address[b7vm62]=10.84.29.62
+mgmt_netmask[b7vm62]=255.255.255.0
+mgmt_gateway[b7vm62]=10.84.29.254
+data_address[b7vm62]=192.168.2.62
+data_netmask[b7vm62]=255.255.255.0
+
+cpu[b7vm63]=8
+memory[b7vm63]=65536
+disk[b7vm63]=200G
+mgmt_address[b7vm63]=10.84.29.63
+mgmt_netmask[b7vm63]=255.255.255.0
+mgmt_gateway[b7vm63]=10.84.29.254
+data_address[b7vm63]=192.168.2.63
+data_netmask[b7vm63]=255.255.255.0
+
+cpu[b7vm64]=8
+memory[b7vm64]=65536
+disk[b7vm64]=300G
+mgmt_address[b7vm64]=10.84.29.64
+mgmt_netmask[b7vm64]=255.255.255.0
+mgmt_gateway[b7vm64]=10.84.29.254
+data_address[b7vm64]=192.168.2.64
+data_netmask[b7vm64]=255.255.255.0
+
+cpu[b7vm65]=8
+memory[b7vm65]=65536
+disk[b7vm65]=200G
+mgmt_address[b7vm65]=10.84.29.65
+mgmt_netmask[b7vm65]=255.255.255.0
+mgmt_gateway[b7vm65]=10.84.29.254
+data_address[b7vm65]=192.168.2.65
+data_netmask[b7vm65]=255.255.255.0
+
+cpu[b7vm66]=8
+memory[b7vm66]=65536
+disk[b7vm66]=300G
+mgmt_address[b7vm66]=10.84.29.66
+mgmt_netmask[b7vm66]=255.255.255.0
+mgmt_gateway[b7vm66]=10.84.29.254
+data_address[b7vm66]=192.168.2.66
+data_netmask[b7vm66]=255.255.255.0
+
+cpu[b7vm67]=8
+memory[b7vm67]=65536
+disk[b7vm67]=200G
+mgmt_address[b7vm67]=10.84.29.67
+mgmt_netmask[b7vm67]=255.255.255.0
+mgmt_gateway[b7vm67]=10.84.29.254
+data_address[b7vm67]=192.168.2.67
+data_netmask[b7vm67]=255.255.255.0
+
+cpu[b7vm68]=8
+memory[b7vm68]=65536
+disk[b7vm68]=200G
+mgmt_address[b7vm68]=10.84.29.68
+mgmt_netmask[b7vm68]=255.255.255.0
+mgmt_gateway[b7vm68]=10.84.29.254
+data_address[b7vm68]=192.168.2.68
+data_netmask[b7vm68]=255.255.255.0
+
+cpu[b7vm69]=8
+memory[b7vm69]=65536
+disk[b7vm69]=200G
+mgmt_address[b7vm69]=10.84.29.69
+mgmt_netmask[b7vm69]=255.255.255.0
+mgmt_gateway[b7vm69]=10.84.29.254
+data_address[b7vm69]=192.168.2.69
+data_netmask[b7vm69]=255.255.255.0
+
+cpu[b7vm70]=8
+memory[b7vm70]=65536
+disk[b7vm70]=200G
+mgmt_address[b7vm70]=10.84.29.70
+mgmt_netmask[b7vm70]=255.255.255.0
+mgmt_gateway[b7vm70]=10.84.29.254
+data_address[b7vm70]=192.168.2.70
+data_netmask[b7vm70]=255.255.255.0
+
+cpu[5b4vm170]=4
+memory[5b4vm170]=32768
+disk[5b4vm170]=100G
+mgmt_address[5b4vm170]=10.87.68.170
+mgmt_netmask[5b4vm170]=255.255.255.128
+mgmt_gateway[5b4vm170]=10.87.68.254
+data_address[5b4vm170]=172.16.0.170
+data_netmask[5b4vm170]=255.255.255.0
+
+cpu[5b4vm171]=4
+memory[5b4vm171]=32768
+disk[5b4vm171]=100G
+mgmt_address[5b4vm171]=10.87.68.171
+mgmt_netmask[5b4vm171]=255.255.255.128
+mgmt_gateway[5b4vm171]=10.87.68.254
+data_address[5b4vm171]=172.16.0.171
+data_netmask[5b4vm171]=255.255.255.0
+
+cpu[5b4vm172]=4
+memory[5b4vm172]=32768
+disk[5b4vm172]=100G
+mgmt_address[5b4vm172]=10.87.68.172
+mgmt_netmask[5b4vm172]=255.255.255.128
+mgmt_gateway[5b4vm172]=10.87.68.254
+data_address[5b4vm172]=172.16.0.172
+data_netmask[5b4vm172]=255.255.255.0
+
+cpu[5b4vm173]=4
+memory[5b4vm173]=32768
+disk[5b4vm173]=100G
+mgmt_address[5b4vm173]=10.87.68.173
+mgmt_netmask[5b4vm173]=255.255.255.128
+mgmt_gateway[5b4vm173]=10.87.68.254
+data_address[5b4vm173]=172.16.0.173
+data_netmask[5b4vm173]=255.255.255.0
+
+cpu[5b4vm174]=4
+memory[5b4vm174]=32768
+disk[5b4vm174]=100G
+mgmt_address[5b4vm174]=10.87.68.174
+mgmt_netmask[5b4vm174]=255.255.255.128
+mgmt_gateway[5b4vm174]=10.87.68.254
+data_address[5b4vm174]=172.16.0.174
+data_netmask[5b4vm174]=255.255.255.0
+
+cpu[5b4vm175]=4
+memory[5b4vm175]=32768
+disk[5b4vm175]=100G
+mgmt_address[5b4vm175]=10.87.68.175
+mgmt_netmask[5b4vm175]=255.255.255.128
+mgmt_gateway[5b4vm175]=10.87.68.254
+data_address[5b4vm175]=172.16.0.175
+data_netmask[5b4vm175]=255.255.255.0
+
+
+create_config_common()
 {
-    for i in $mgmt_mac_list
-    do
-      mac_idx=`expr index $i =`
-      if [ $1 == ${i:0:mac_idx-1} ]
-      then
-        mgmt_mac=${i:mac_idx}
-      fi
-    done
+    name=$1
 
-    for i in $public_mac_list
-    do
-      mac_idx=`expr index $i =`
-      if [ $1 == ${i:0:mac_idx-1} ]
-      then
-        public_mac=${i:mac_idx}
-      fi
-    done
+    cat << __EOF__ > hosts
+127.0.0.1 localhost.contrail.juniper.net localhost
+${mgmt_address[$name]} $name.contrail.juniper.net $name
+__EOF__
+
+    cat << __EOF__ > ntp.conf
+driftfile /var/lib/ntp/drift
+server 10.84.5.100
+restrict 127.0.0.1
+restrict -6 ::1
+includefile /etc/ntp/crypto/pw
+keys /etc/ntp/keys
+__EOF__
+
+    cat << __EOF__ > authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCxx+JfOb56uF2/4USg+4C6aVEmxRp37VC31uMdiNV65EMUmoyQoPLoVq1SBkbS1H+Bo24YWRisddTXvEGPxE7y92xvfm7xui/8QSjeC2LwaoslChe54zggwg3pkFexU/jD0cnsmBurVDKUCoKXMLILUsDzNSd7x8wgKhoygzBmHQCfzzlvGfeYzCxrJXOahW+gisYYZz4rN7kVGp3IpmhOxiVsB6+ylZMRX2l+jP09CZLRpRa72M6ampJBqHocG3uyVP5Ym9Ehed+Ag3PmyMD9N08P7rSbxaxdvCS1EJemeVSpGDAi11K9xnsCs+6Wv2M0Q1BmSTHUDQtv+ZEji7Oj root@vm100
+__EOF__
 }
 
-define_vm()
+create_config_centos()
 {
-    vm_image=/var/vmpool/$vm_name.img
+    name=$1
 
-    mac_get $vm_id
+    cat << __EOF__ > ifcfg-eth0
+DEVICE=eth0
+TYPE=Ethernet
+BOOTPROTO=static
+ONBOOT=yes
+IPADDR=${mgmt_address[$name]}
+NETMASK=${mgmt_netmask[$name]}
+GATEWAY=${mgmt_gateway[$name]}
+DNS1=10.84.5.100
+DNS2=172.21.200.60
+DOMAIN="contrail.juniper.net juniper.net englab.juniper.net"
+__EOF__
 
-    if [ ! -e $vm_image ]
-    then
-        qemu-img create -f raw $vm_image 40G
+    cat << __EOF__ > ifcfg-eth1
+DEVICE=eth1
+TYPE=Ethernet
+BOOTPROTO=static
+ONBOOT=yes
+IPADDR=${data_address[$name]}
+NETMASK=${data_netmask[$name]}
+__EOF__
+}
+
+create_config_ubuntu()
+{
+    name=$1
+
+    cat << __EOF__ > interfaces
+auto lo
+iface lo inet loopback
+
+auto ens3
+iface ens3 inet static
+    address ${mgmt_address[$name]}
+    netmask ${mgmt_netmask[$name]}
+    gateway ${mgmt_gateway[$name]}
+
+auto ens4
+iface ens4 inet static
+    address ${data_address[$name]}
+    netmask ${data_netmask[$name]}
+
+dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-search contrail.juniper.net juniper.net jnpr.net
+__EOF__
+}
+
+clean_config()
+{
+    rm -f hosts
+    rm -f ntp.conf
+    rm -f authorized_keys
+    rm -f ifcfg-eth0
+    rm -f ifcfg-eth1
+    rm -f interfaces
+}
+
+create_volume()
+{
+    name=$1
+    size=$2
+
+    virsh vol-create-as lv $name $size
+}
+
+customize_centos()
+{
+    name=$1
+
+    create_config_common $name
+    create_config_centos $name
+
+    virt-customize \
+        -a /dev/lv/$name \
+        --hostname $name \
+        --root-password password:c0ntrail123 \
+        --upload hosts:/etc \
+        --run-command 'sed -i "s/#UseDNS yes/UseDNS no/g" /etc/ssh/sshd_config' \
+        --run-command 'mkdir -p /root/.ssh' \
+        --upload authorized_keys:/root/.ssh \
+        --run-command 'chmod 600 /root/.ssh/authorized_keys' \
+        --upload ifcfg-eth0:/etc/sysconfig/network-scripts \
+        --upload ifcfg-eth1:/etc/sysconfig/network-scripts \
+        --run-command 'yum remove -y cloud-init' \
+        --run-command 'systemctl disable chronyd' \
+        --install 'ntp' \
+        --upload ntp.conf:/etc \
+        --run-command 'systemctl enable ntpd' \
+        --selinux-relabel
+
+    clean_config
+}
+
+customize_ubuntu()
+{
+    name=$1
+
+    create_config_common $name
+    create_config_ubuntu $name
+
+    virt-customize \
+        -a /dev/lv/$name \
+        --hostname $name \
+        --root-password password:c0ntrail123 \
+        --upload hosts:/etc \
+        --upload interfaces:/etc/network \
+        --run-command 'apt-get purge -y cloud-init' \
+        --run-command 'dpkg-reconfigure openssh-server' \
+        --run-command 'sed -i "s/^PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config' \
+        --run-command 'sed -i "s/^PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config' \
+        --run-command 'mkdir -p /root/.ssh' \
+        --upload authorized_keys:/root/.ssh \
+        --run-command 'chmod 600 /root/.ssh/authorized_keys' \
+        --install 'ntp' \
+        --upload ntp.conf:/etc \
+        --run-command 'systemctl enable ntp'
+
+    clean_config
+}
+
+customize_redhat()
+{
+    name=$1
+
+    create_config_common $name
+    create_config_centos $name
+
+    virt-customize \
+        -a /dev/lv/$name \
+        --hostname $name \
+        --root-password password:c0ntrail123 \
+        --upload hosts:/etc \
+        --run-command 'sed -i "s/#UseDNS yes/UseDNS no/g" /etc/ssh/sshd_config' \
+        --run-command 'mkdir -p /root/.ssh' \
+        --upload authorized_keys:/root/.ssh \
+        --run-command 'chmod 600 /root/.ssh/authorized_keys' \
+        --upload ifcfg-eth0:/etc/sysconfig/network-scripts \
+        --upload ifcfg-eth1:/etc/sysconfig/network-scripts \
+        --run-command 'yum remove -y cloud-init' \
+        --run-command 'systemctl disable chronyd' \
+        --selinux-relabel
+
+    clean_config
+}
+
+cmd_create()
+{
+    name=$1
+    dist=$2
+    size=$3
+
+    create_volume $name ${disk[$name]}
+
+    if [[ $dist == "centos" ]]; then
+        virt-resize $img_file_centos /dev/lv/$name --expand /dev/sda1
+        customize_centos $name
+    elif [[ $dist == "ubuntu" ]]; then
+        virt-resize $img_file_ubuntu /dev/lv/$name --expand /dev/sda1
+        customize_ubuntu $name
+    elif [[ $dist == "redhat" ]]; then
+        virt-resize $img_file_redhat /dev/lv/$name --expand /dev/sda1
+        customize_redhat $name
+    else
+        echo "ERROR: Unknown distribution $dist!"
+        exit 0
     fi
 
-    cat << __EOT__ > $vm_name.xml
-<domain type='kvm'>
-  <name>$vm_name</name>
-  <memory unit='KiB'>$vm_memory</memory>
-  <cpu mode='custom' match='exact'>
-    <model fallback='allow'>SandyBridge</model>
-    <vendor>Intel</vendor>
-    <feature policy='require' name='vmx'/>
-  </cpu>
-  <currentMemory unit='KiB'>$vm_memory</currentMemory>
-  <vcpu placement='static'>$vm_cpu</vcpu>
-  <os>
-    <type arch='x86_64'>hvm</type>
-    <boot dev='network'/>
-    <boot dev='hd'/>
-  </os>
-  <features>
-    <acpi/>
-    <apic/>
-    <pae/>
-  </features>
-  <clock offset='utc'/>
-  <on_poweroff>destroy</on_poweroff>
-  <on_reboot>restart</on_reboot>
-  <on_crash>restart</on_crash>
-  <devices>
-    <disk type='file' device='disk'>
-      <driver name='qemu' type='raw' cache='none'/>
-      <source file='$vm_image'/>
-      <target dev='vda' bus='virtio'/>
-    </disk>
-    <interface type='bridge'>
-      <mac address='$mgmt_mac'/>
-      <source bridge='br-mgmt'/>
-      <model type='virtio'/>
-    </interface>
-    <interface type='bridge'>
-      <mac address='$public_mac'/>
-      <source bridge='br-public'/>
-      <model type='virtio'/>
-    </interface>
-    <serial type='pty'>
-      <target port='0'/>
-    </serial>
-    <console type='pty'>
-      <target type='serial' port='0'/>
-    </console>
-    <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'>
-      <listen type='address' address='0.0.0.0'/>
-    </graphics>
-    <video>
-      <model type='cirrus' vram='9216' heads='1'/>
-    </video>
-    <memballoon model='virtio'>
-    </memballoon>
-  </devices>
-</domain>
-__EOT__
-
+    virt-install --connect qemu:///system --virt-type kvm \
+        --name $name --vcpus ${cpu[$name]} --ram ${memory[$name]} \
+        --disk bus=virtio,vol=lv/$name,cache=none \
+        -w bridge=br0,model=virtio \
+        -w bridge=br1,model=virtio \
+        --graphics vnc,listen=0.0.0.0 --noautoconsole \
+        --boot hd
 }
 
-add_vm()
+cmd_delete()
 {
-    mac_get vm$1
+    name=$1
 
-    cobbler system add --name vm$1 --hostname vm$1 --profile $2
-    cobbler system edit --name vm$1 --interface eth0 --ip-address 10.1.1.$1 --mac $mgmt_mac --management True
-    cobbler system edit --name vm$1 --interface eth1 --ip-address 10.84.23.$1 --mac $public_mac --netmask 255.255.255.0 --static True --static-routes "0.0.0.0/0:10.84.23.254"
-    cobbler system edit --name vm$1 --gateway 10.84.23.254
+    virsh destroy $name
+    virsh undefine $name
+    virsh vol-delete $name lv
 }
 
-if [[ $1 == "define" ]]
-then
-    vm_id=$2
-    vm_name=$2-$3
-    vm_cpu=$4
-    let "vm_memory = $5 * 1024 * 1024"
-    define_vm
-elif [[ $1 == "add" ]]
-then
-    #for vm_id in "96 97 98 99 100 101 102 103"
-    for vm_idx in "96"
-    do
-        add_vm $vm_idx centos-7.0-1406-x86_64
-    done
+help()
+{
+  echo "help"
+  echo "$0 create <name> [centos | ubuntu]"
+  echo "    For example"
+  echo "    $0 create 5b4vm170 centos"
+  echo "$0 delete <name>"
+}
 
-    #for vm_idx in "104 105 106 107 108 109 110 111"
-    for vm_idx in "104"
+main()
+{
+    while [ "$1" != "" ]
     do
-        add_vm $vm_idx ubuntu-14.04.2-x86_64
+        case $1 in
+            -h | --help)
+                help
+                exit 0
+                ;;
+            create)
+                shift
+                cmd_create "$@"
+                exit 0
+                ;;
+            delete)
+                shift
+                cmd_delete "$@"
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown command \"$1\""
+                ;;
+        esac
+        shift
     done
-elif [[ $1 == "delete" ]]
-then
-    cobbler system remove --name $2
-elif [[ $1 == "reimage" ]]
-then
-    cobbler system edit --name $2 --netboot True
-else
-    echo "Usage:"
-    echo "$0 define <id> <name> <CPU> <memory>(GB)"
-    echo "eg. $0 define vm96 centos 2 16"
-    echo "$0 add <id>"
-    echo "$0 delete <id>"
-    echo "$0 reimage <id>"
-    echo ""
-fi
+}
+
+main "$@"
+exit 0
 
