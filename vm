@@ -34,8 +34,8 @@ mgmt_gateway[b7vm62]=10.84.29.254
 data_address[b7vm62]=192.168.2.62
 data_netmask[b7vm62]=255.255.255.0
 
-cpu[b7vm63]=8
-memory[b7vm63]=65536
+cpu[b7vm63]=4
+memory[b7vm63]=32768
 disk[b7vm63]=200G
 mgmt_address[b7vm63]=10.84.29.63
 mgmt_netmask[b7vm63]=255.255.255.0
@@ -97,8 +97,8 @@ mgmt_gateway[b7vm69]=10.84.29.254
 data_address[b7vm69]=192.168.2.69
 data_netmask[b7vm69]=255.255.255.0
 
-cpu[b7vm70]=8
-memory[b7vm70]=65536
+cpu[b7vm70]=4
+memory[b7vm70]=32768
 disk[b7vm70]=200G
 mgmt_address[b7vm70]=10.84.29.70
 mgmt_netmask[b7vm70]=255.255.255.0
@@ -173,7 +173,7 @@ data_netmask[b7vm96]=255.255.255.0
 
 cpu[b7vm97]=6
 memory[b7vm97]=65536
-disk[b7vm97]=100G
+disk[b7vm97]=80G
 mgmt_address[b7vm97]=10.84.29.97
 mgmt_netmask[b7vm97]=255.255.255.0
 mgmt_gateway[b7vm97]=10.84.29.254
@@ -182,7 +182,7 @@ data_netmask[b7vm97]=255.255.255.0
 
 cpu[b7vm98]=6
 memory[b7vm98]=65536
-disk[b7vm98]=100G
+disk[b7vm98]=80G
 mgmt_address[b7vm98]=10.84.29.98
 mgmt_netmask[b7vm98]=255.255.255.0
 mgmt_gateway[b7vm98]=10.84.29.254
@@ -191,7 +191,7 @@ data_netmask[b7vm98]=255.255.255.0
 
 cpu[b7vm99]=6
 memory[b7vm99]=65536
-disk[b7vm99]=100G
+disk[b7vm99]=80G
 mgmt_address[b7vm99]=10.84.29.99
 mgmt_netmask[b7vm99]=255.255.255.0
 mgmt_gateway[b7vm99]=10.84.29.254
@@ -210,11 +210,20 @@ data_netmask[b7vm100]=255.255.255.0
 cpu[b7vm101]=4
 memory[b7vm101]=32768
 disk[b7vm101]=60G
-mgmt_address[b7vm101]=10.84.29.100
+mgmt_address[b7vm101]=10.84.29.101
 mgmt_netmask[b7vm101]=255.255.255.0
 mgmt_gateway[b7vm101]=10.84.29.254
-data_address[b7vm101]=192.168.2.100
+data_address[b7vm101]=192.168.2.101
 data_netmask[b7vm101]=255.255.255.0
+
+cpu[b7vm102]=2
+memory[b7vm102]=16384
+disk[b7vm102]=60G
+mgmt_address[b7vm102]=10.84.29.102
+mgmt_netmask[b7vm102]=255.255.255.0
+mgmt_gateway[b7vm102]=10.84.29.254
+data_address[b7vm102]=192.168.2.102
+data_netmask[b7vm102]=255.255.255.0
 
 
 create_config_common()
