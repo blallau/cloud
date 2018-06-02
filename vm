@@ -1,7 +1,7 @@
 #!/bin/bash
 
 img_path=/var/lib/libvirt/images
-img_file_centos=$img_path/CentOS-7-x86_64-GenericCloud-1511.qcow2
+img_file_centos=$img_path/CentOS-7-x86_64-GenericCloud-1711.qcow2
 #img_file_centos=$img_path/CentOS-7-x86_64-GenericCloud-1802.qcow2
 #img_file_ubuntu=$img_path/trusty-server-cloudimg-amd64-disk1.img
 img_file_ubuntu=$img_path/xenial-server-cloudimg-amd64-disk1.img
@@ -106,8 +106,9 @@ mgmt_gateway[b7vm70]=10.84.29.254
 data_address[b7vm70]=192.168.2.70
 data_netmask[b7vm70]=255.255.255.0
 
-cpu[5b4vm170]=4
-memory[5b4vm170]=32768
+############################################
+cpu[5b4vm170]=2
+memory[5b4vm170]=16384
 disk[5b4vm170]=100G
 mgmt_address[5b4vm170]=10.87.68.170
 mgmt_netmask[5b4vm170]=255.255.255.128
@@ -115,8 +116,8 @@ mgmt_gateway[5b4vm170]=10.87.68.254
 data_address[5b4vm170]=172.16.0.170
 data_netmask[5b4vm170]=255.255.255.0
 
-cpu[5b4vm171]=4
-memory[5b4vm171]=32768
+cpu[5b4vm171]=6
+memory[5b4vm171]=65536
 disk[5b4vm171]=100G
 mgmt_address[5b4vm171]=10.87.68.171
 mgmt_netmask[5b4vm171]=255.255.255.128
@@ -124,8 +125,8 @@ mgmt_gateway[5b4vm171]=10.87.68.254
 data_address[5b4vm171]=172.16.0.171
 data_netmask[5b4vm171]=255.255.255.0
 
-cpu[5b4vm172]=4
-memory[5b4vm172]=32768
+cpu[5b4vm172]=6
+memory[5b4vm172]=65536
 disk[5b4vm172]=100G
 mgmt_address[5b4vm172]=10.87.68.172
 mgmt_netmask[5b4vm172]=255.255.255.128
@@ -133,8 +134,8 @@ mgmt_gateway[5b4vm172]=10.87.68.254
 data_address[5b4vm172]=172.16.0.172
 data_netmask[5b4vm172]=255.255.255.0
 
-cpu[5b4vm173]=4
-memory[5b4vm173]=32768
+cpu[5b4vm173]=6
+memory[5b4vm173]=65536
 disk[5b4vm173]=100G
 mgmt_address[5b4vm173]=10.87.68.173
 mgmt_netmask[5b4vm173]=255.255.255.128
@@ -142,7 +143,7 @@ mgmt_gateway[5b4vm173]=10.87.68.254
 data_address[5b4vm173]=172.16.0.173
 data_netmask[5b4vm173]=255.255.255.0
 
-cpu[5b4vm174]=4
+cpu[5b4vm174]=6
 memory[5b4vm174]=32768
 disk[5b4vm174]=100G
 mgmt_address[5b4vm174]=10.87.68.174
@@ -151,7 +152,7 @@ mgmt_gateway[5b4vm174]=10.87.68.254
 data_address[5b4vm174]=172.16.0.174
 data_netmask[5b4vm174]=255.255.255.0
 
-cpu[5b4vm175]=4
+cpu[5b4vm175]=6
 memory[5b4vm175]=32768
 disk[5b4vm175]=100G
 mgmt_address[5b4vm175]=10.87.68.175
@@ -159,6 +160,61 @@ mgmt_netmask[5b4vm175]=255.255.255.128
 mgmt_gateway[5b4vm175]=10.87.68.254
 data_address[5b4vm175]=172.16.0.175
 data_netmask[5b4vm175]=255.255.255.0
+
+############################################
+cpu[b7vm96]=2
+memory[b7vm96]=16384
+disk[b7vm96]=40G
+mgmt_address[b7vm96]=10.84.29.96
+mgmt_netmask[b7vm96]=255.255.255.0
+mgmt_gateway[b7vm96]=10.84.29.254
+data_address[b7vm96]=192.168.2.96
+data_netmask[b7vm96]=255.255.255.0
+
+cpu[b7vm97]=6
+memory[b7vm97]=65536
+disk[b7vm97]=100G
+mgmt_address[b7vm97]=10.84.29.97
+mgmt_netmask[b7vm97]=255.255.255.0
+mgmt_gateway[b7vm97]=10.84.29.254
+data_address[b7vm97]=192.168.2.97
+data_netmask[b7vm97]=255.255.255.0
+
+cpu[b7vm98]=6
+memory[b7vm98]=65536
+disk[b7vm98]=100G
+mgmt_address[b7vm98]=10.84.29.98
+mgmt_netmask[b7vm98]=255.255.255.0
+mgmt_gateway[b7vm98]=10.84.29.254
+data_address[b7vm98]=192.168.2.98
+data_netmask[b7vm98]=255.255.255.0
+
+cpu[b7vm99]=6
+memory[b7vm99]=65536
+disk[b7vm99]=100G
+mgmt_address[b7vm99]=10.84.29.99
+mgmt_netmask[b7vm99]=255.255.255.0
+mgmt_gateway[b7vm99]=10.84.29.254
+data_address[b7vm99]=192.168.2.99
+data_netmask[b7vm99]=255.255.255.0
+
+cpu[b7vm100]=4
+memory[b7vm100]=32768
+disk[b7vm100]=60G
+mgmt_address[b7vm100]=10.84.29.100
+mgmt_netmask[b7vm100]=255.255.255.0
+mgmt_gateway[b7vm100]=10.84.29.254
+data_address[b7vm100]=192.168.2.100
+data_netmask[b7vm100]=255.255.255.0
+
+cpu[b7vm101]=4
+memory[b7vm101]=32768
+disk[b7vm101]=60G
+mgmt_address[b7vm101]=10.84.29.100
+mgmt_netmask[b7vm101]=255.255.255.0
+mgmt_gateway[b7vm101]=10.84.29.254
+data_address[b7vm101]=192.168.2.100
+data_netmask[b7vm101]=255.255.255.0
 
 
 create_config_common()
