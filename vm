@@ -225,6 +225,16 @@ mgmt_gateway[b7vm102]=10.84.29.254
 data_address[b7vm102]=192.168.2.102
 data_netmask[b7vm102]=255.255.255.0
 
+############################################
+cpu[undercloud]=6
+memory[undercloud]=32768
+disk[undercloud]=80G
+mgmt_address[undercloud]=10.84.29.70
+mgmt_netmask[undercloud]=255.255.255.0
+mgmt_gateway[undercloud]=10.84.29.254
+data_address[undercloud]=172.16.1.70
+data_netmask[undercloud]=255.255.255.0
+
 
 create_config_common()
 {
