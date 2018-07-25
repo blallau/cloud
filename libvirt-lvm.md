@@ -47,6 +47,47 @@ iface br1 inet static
     up ip route add 192.168.0.0/16 via 192.168.2.254
 ```
 
+```
+auto lo
+iface lo inet loopback
+
+auto em1
+iface em1 inet manual
+
+auto br-mgmt
+iface br-mgmt inet static
+    address 10.87.68.131
+    netmask 255.255.255.128
+    gateway 10.87.68.254
+    bridge_ports em1
+
+auto p514p1
+iface p514p1 inet manual
+    bond-master bond0
+
+auto p514p2
+iface p514p2 inet manual
+    bond-master bond0
+
+auto bond0
+iface bond0 inet manual
+    hwaddress 90:e2:ba:aa:7d:04
+    bond-slaves none
+    bond-mode 802.3ad
+    bond-miimon 100
+    bond-xmit_hash_policy layer3+4
+
+auto br-data
+iface br-data inet static
+    address 172.16.0.131
+    netmask 255.255.255.0
+    bridge_ports bond0
+
+dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-search contrail.juniper.net juniper.net jnpr.net
+```
+
+
 ## 2.2 Install libvirt
 
 ```
