@@ -6,95 +6,23 @@ This guide is for building KVM hypervisor and VM.
 
 # 2 Hypervisor
 
-Ubuntu Trusty 14.04.5 or Xenial 16.04.3
 
-A disk partition is required to be the volume pool for VMs.
+## 2.1 Linux distribution
 
-## 2.1 Setup network
-
-Install bridge-utils and enslave package to support bridging and bonding.
-```
-apt-get install bridge-utils enslave
-```
-Make sure bonding module is in /etc/modules and loaded "lsmod | grep bonding".
-
-Update /etc/network/interfaces.
-```
-# The loopback network interface
-auto lo
-iface lo inet loopback
-
-auto eno1
-iface eno1 inet manual
-
-auto enp4s0f1
-iface enp4s0f1 inet manual
-
-auto br0
-iface br0 inet static
-    address 10.84.29.16
-    netmask 255.255.255.0
-    gateway 10.84.29.254
-    bridge_ports eno1
-
-dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
-dns-search contrail.juniper.net juniper.net englab.juniper.net
-
-auto br1
-iface br1 inet static
-    address 192.168.2.16
-    netmask 255.255.255.0
-    bridge_ports enp4s0f1
-    up ip route add 192.168.0.0/16 via 192.168.2.254
-```
-
-```
-auto lo
-iface lo inet loopback
-
-auto em1
-iface em1 inet manual
-
-auto br-mgmt
-iface br-mgmt inet static
-    address 10.87.68.131
-    netmask 255.255.255.128
-    gateway 10.87.68.254
-    bridge_ports em1
-
-auto p514p1
-iface p514p1 inet manual
-    bond-master bond0
-
-auto p514p2
-iface p514p2 inet manual
-    bond-master bond0
-
-auto bond0
-iface bond0 inet manual
-    bond-slaves none
-    bond-mode 802.3ad
-    bond-miimon 100
-    bond-xmit_hash_policy layer3+4
-
-auto br-data
-iface br-data inet static
-    address 172.16.0.131
-    netmask 255.255.255.0
-    bridge_ports bond0
-
-dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
-dns-search contrail.juniper.net juniper.net jnpr.net
-```
+* Ubuntu Trusty 14.04.5 or Xenial 16.04.3
+* CentOS 7.4 or 7.5.
 
 
-## 2.2 Install libvirt
+## 2.2 Disk
 
-```
-apt-get install qemu-kvm libvirt-bin virtinst libguestfs-tools
-```
+`ext4` is recommended to be the file system.
 
-## 2.3 Build volume pool
+Here are some options for VM disk.
+* QCOW2 file, efficient disk usage, only grow when space is required.
+* RAW file, fixed file size, better performance.
+* Logical volume, best performance. A disk partition is required to be the volume pool/group.
+
+#### volume pool
 ```
 virsh pool-define-as --name lv --type logical --source-dev /dev/sdb
 virsh pool-build lv
@@ -102,7 +30,16 @@ virsh pool-start lv
 virsh pool-autostart lv
 ```
 
-## 2.4 Update apparmor
+
+## 2.3 Package
+
+#### Ubuntu
+```
+apt-get install qemu-kvm libvirt-bin virtinst \
+    libguestfs-tools \
+    bridge-utils enslave
+```
+
 Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devices.
 ```
   network inet stream,
@@ -112,6 +49,41 @@ Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devic
   /dev/net/tun rw,
   /dev/tap* rw,
 ```
+
+Patch as Appendix B.1.
+
+
+#### CentOS
+```
+yum install qemu-kvm libvirt virt-install \
+    libguestfs-tools
+```
+
+Package `libguestfs-xfs` is required in case file system is XFS.
+
+
+## 2.4 Network
+
+#### Ubuntu
+Example is in Appendix A.1.
+
+To apply updates, create ./interfaces with the updates, then apply it.
+```
+ifdown --all; mv interfaces /etc/network/; ifup --all
+```
+
+
+#### CentOS
+Example is in Appendix A.2.
+
+To apply updates, create or update files then restart networking service.
+```
+systemctl restart network
+```
+
+#### Note
+In case of bonding interface, make sure bonding module is in /etc/modules and loaded "lsmod | grep bonding".
+
 
 # 3 Launch VM
 
@@ -271,11 +243,6 @@ This process takes a while and QCOW2 image is big.
 
 # 5 libguestfs-tools
 
-Install libguestfs-tools.
-```
-apt-get install libguestfs-tools
-```
-
 ```
 # virt-df -h CentOS-7-x86_64-GenericCloud-1710.qcow2 
 Filesystem                                Size       Used  Available  Use%
@@ -304,6 +271,153 @@ Name       Type        VFS   Label            Size        Parent
 
 
 # Appendix
+
+## A.1 Ubuntu interface
+
+`/etc/network/interfaces`
+```
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto eno1
+iface eno1 inet manual
+
+auto enp4s0f1
+iface enp4s0f1 inet manual
+
+auto br0
+iface br0 inet static
+    address 10.84.29.16
+    netmask 255.255.255.0
+    gateway 10.84.29.254
+    bridge_ports eno1
+
+dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-search contrail.juniper.net juniper.net englab.juniper.net
+
+auto br1
+iface br1 inet static
+    address 192.168.2.16
+    netmask 255.255.255.0
+    bridge_ports enp4s0f1
+    up ip route add 192.168.0.0/16 via 192.168.2.254
+```
+
+```
+auto lo
+iface lo inet loopback
+
+auto em1
+iface em1 inet manual
+
+auto br-mgmt
+iface br-mgmt inet static
+    address 10.87.68.131
+    netmask 255.255.255.128
+    gateway 10.87.68.254
+    bridge_ports em1
+
+auto p514p1
+iface p514p1 inet manual
+    bond-master bond0
+
+auto p514p2
+iface p514p2 inet manual
+    bond-master bond0
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves none
+    bond-mode 802.3ad
+    bond-miimon 100
+    bond-xmit_hash_policy layer3+4
+
+auto br-data
+iface br-data inet static
+    address 172.16.0.131
+    netmask 255.255.255.0
+    bridge_ports bond0
+
+dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-search contrail.juniper.net juniper.net jnpr.net
+```
+
+
+## A.2 CentOS interface
+
+`ifcfg-enp3s0f1`
+```
+DEVICE=enp3s0f1
+TYPE=Ethernet
+ONBOOT=yes
+BOOTPROTO=none
+MASTER=bond0
+SLAVE=yes
+NM_CONTROLLED=no
+```
+
+`ifcfg-enp4s0f0`
+```
+DEVICE=enp4s0f0
+TYPE=Ethernet
+ONBOOT=yes
+BOOTPROTO=none
+MASTER=bond0
+SLAVE=yes
+NM_CONTROLLED=no
+```
+
+`ifcfg-bond0`
+```
+DEVICE=bond0
+TYPE=Bond
+ONBOOT=yes
+BOOTPROTO=none
+BONDING_MASTER=yes
+BONDING_OPTS="mode=4 miimon=100"
+BRIDGE=br1
+NM_CONTROLLED=no
+```
+
+`ifcfg-br1`
+```
+DEVICE=br1
+TYPE=Bridge
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=10.26.32.11
+NETMASK=255.255.255.0
+NM_CONTROLLED=no
+```
+
+`ifcfg-enp3s0f0`
+```
+DEVICE=enp3s0f0
+TYPE=Ethernet
+BOOTPROTO=none
+ONBOOT=yes
+BRIDGE=br0
+NM_CONTROLLED=no
+```
+
+`ifcfg-br0`
+```
+DEVICE=br0
+TYPE=Bridge
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=10.26.253.14
+NETMASK=255.255.255.0
+GATEWAY=10.26.253.1
+DNS1=10.26.251.5
+DNS2=8.8.8.8
+DOMAIN="lab.juniper.net juniper.net"
+NM_CONTROLLED=no
+```
+
+
+## B.1 Patch to libguestfs
 
 On Ubuntu Xenial, need to apply this patch manually. https://github.com/libguestfs/libguestfs/commit/fd60be95091a1923e108f72caf251f5549eeccd0
 
