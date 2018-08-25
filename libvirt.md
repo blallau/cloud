@@ -283,8 +283,8 @@ vbmc add osp-controller-0 --port 6231 \
   --username admin --password contrail123
 vbmc add contrail-controller-0 --port 6232 \
   --username admin --password contrail123    
-vbmc start osp-controller-1
-vbmc start contrail-controller-1   
+vbmc start osp-controller-0
+vbmc start contrail-controller-0   
 ```
 
 
