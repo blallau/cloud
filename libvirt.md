@@ -269,6 +269,24 @@ Name       Type        VFS   Label            Size        Parent
 /dev/sda1  filesystem  ext4  cloudimg-rootfs  2359296000  -
 ```
 
+# 6 Virtual BMC
+
+On Ubuntu 16.04.
+```
+apt-get update
+apt-get install libvirt-dev python-pip
+pip install virtualbmc
+```
+
+```
+vbmc add osp-controller-0 --port 6231 \
+  --username admin --password contrail123
+vbmc add contrail-controller-0 --port 6232 \
+  --username admin --password contrail123    
+vbmc start osp-controller-1
+vbmc start contrail-controller-1   
+```
+
 
 # Appendix
 
