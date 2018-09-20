@@ -15,6 +15,18 @@ This guide is for building KVM hypervisor and VM.
 
 ## 2.2 Disk
 
+```
+Primary 250MB B ext4
+Primary 600GB   lvm
+Primary 1.4TB   lvm
+
+Volume group vg1
+  Logical volume
+    swap 250GB
+    root the rest
+```
+
+
 `ext4` is recommended to be the file system.
 
 Here are some options for VM disk.
@@ -22,22 +34,15 @@ Here are some options for VM disk.
 * RAW file, fixed file size, better performance.
 * Logical volume, best performance. A disk partition is required to be the volume pool/group.
 
-#### volume pool
-```
-virsh pool-define-as --name lv --type logical --source-dev /dev/sdb
-virsh pool-build lv
-virsh pool-start lv
-virsh pool-autostart lv
-```
-
 
 ## 2.3 Package
 
 #### Ubuntu
 ```
-apt-get install qemu-kvm libvirt-bin virtinst \
-    libguestfs-tools \
-    bridge-utils enslave
+apt-get install \
+  bridge-utils ifenslave \
+  qemu-kvm libvirt-bin virtinst \
+  libguestfs-tools
 ```
 
 Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devices.
@@ -50,13 +55,14 @@ Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devic
   /dev/tap* rw,
 ```
 
-Patch as Appendix B.1.
+Patch libguestfs as Appendix B.1.
 
 
 #### CentOS
 ```
-yum install qemu-kvm libvirt virt-install \
-    libguestfs-tools
+yum install \
+  qemu-kvm libvirt virt-install \
+  libguestfs-tools
 ```
 
 Package `libguestfs-xfs` is required in case file system is XFS.
@@ -85,6 +91,17 @@ systemctl restart network
 In case of bonding interface, make sure bonding module is in /etc/modules and loaded "lsmod | grep bonding".
 
 
+## 2.5 Volume
+
+#### volume pool
+```
+virsh pool-define-as --name lv --type logical --source-dev /dev/sda3
+virsh pool-build lv
+virsh pool-start lv
+virsh pool-autostart lv
+```
+
+
 # 3 Launch VM
 
 ## 3.1 Create VM to boot from network
@@ -98,9 +115,12 @@ virsh vol-create-as lv controller 150G
 virt-install --connect qemu:///system --virt-type kvm \
     --name <vm name> --vcpus <cpu> --ram <MB> \
     --disk bus=virtio,vol=<pool>/<volume>,cache=none \
-    -w bridge=<bridge>,model=virtio \
+    --network bridge=<bridge>,model=virtio \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --pxe --boot network
+```
+```
+    --disk path=/var/tmp/ubuntu.qcow2,format=qcow2 \
 ```
 
 ## 3.2 Create VM based on CentOS cloud image
@@ -164,7 +184,7 @@ ONBOOT=yes
 IPADDR=10.84.29.61
 NETMASK=255.255.255.0
 GATEWAY=10.84.29.254
-DNS1=10.84.5.100
+DNS1=10.84.5.101
 DNS2=172.21.200.60
 DOMAIN="contrail.juniper.net juniper.net englab.juniper.net"
 ```
@@ -184,8 +204,8 @@ Start VM.
 virt-install --connect qemu:///system --virt-type kvm \
     --name $1 --vcpus 12 --ram 32768 \
     --disk bus=virtio,vol=lv/$name,cache=none \
-    -w bridge=br0,model=virtio \
-    -w bridge=br1,model=virtio \
+    --network bridge=br0,model=virtio \
+    --network bridge=br1,model=virtio \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --boot hd
 ```
@@ -311,7 +331,7 @@ iface br0 inet static
     gateway 10.84.29.254
     bridge_ports eno1
 
-dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-nameservers 10.84.5.101 172.21.200.60 172.29.131.60
 dns-search contrail.juniper.net juniper.net englab.juniper.net
 
 auto br1
@@ -326,22 +346,22 @@ iface br1 inet static
 auto lo
 iface lo inet loopback
 
-auto em1
-iface em1 inet manual
+auto eno1
+iface eno1 inet manual
 
 auto br-mgmt
 iface br-mgmt inet static
-    address 10.87.68.131
+    address 10.87.68.133
     netmask 255.255.255.128
     gateway 10.87.68.254
-    bridge_ports em1
+    bridge_ports eno1
 
-auto p514p1
-iface p514p1 inet manual
+auto ens2f0
+iface ens2f0 inet manual
     bond-master bond0
 
-auto p514p2
-iface p514p2 inet manual
+auto ens2f1
+iface ens2f1 inet manual
     bond-master bond0
 
 auto bond0
@@ -353,11 +373,11 @@ iface bond0 inet manual
 
 auto br-data
 iface br-data inet static
-    address 172.16.0.131
+    address 172.16.1.133
     netmask 255.255.255.0
     bridge_ports bond0
 
-dns-nameservers 10.84.5.100 172.21.200.60 172.29.131.60
+dns-nameservers 10.84.5.101 172.21.200.60 172.29.131.60
 dns-search contrail.juniper.net juniper.net jnpr.net
 ```
 
