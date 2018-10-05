@@ -4,17 +4,18 @@
 This guide is for building KVM hypervisor and VM.
 
 
-# 2 Hypervisor
+# 2 Hypervisor host
 
-
-## 2.1 Linux distribution
-
+#### Linux distribution
 * Ubuntu Trusty 14.04.5 or Xenial 16.04.3
 * CentOS 7.4 or 7.5.
 
+## 2.1 Resource
+* Memory: 256GB
+* CPU: 32 vCPU
+* Disk: 2TB
 
-## 2.2 Disk
-
+#### Disk partition
 ```
 Primary 250MB B ext4
 Primary 600GB   lvm
@@ -24,8 +25,9 @@ Volume group vg1
   Logical volume
     swap 250GB
     root the rest
-```
 
+Volume group lv
+```
 
 `ext4` is recommended to be the file system.
 
@@ -35,14 +37,43 @@ Here are some options for VM disk.
 * Logical volume, best performance. A disk partition is required to be the volume pool/group.
 
 
-## 2.3 Package
+## 2.1 Network
+
+#### Ubuntu
+
+Install packages for brdge and bond interface.
+```
+apt-get install bridge-utils ifenslave
+```
+
+Example is in Appendix A.1.
+
+To apply updates, create ./interfaces with the updates, then apply it.
+```
+ifdown --all; mv interfaces /etc/network/; ifup --all
+```
+
+
+#### CentOS
+
+Install packages for brdge and bond interface.
+```
+apt-get install bridge-utils
+```
+
+Example is in Appendix A.2.
+
+To apply updates, create or update files then restart networking service.
+```
+systemctl restart network
+```
+
+
+## 2.2 Package
 
 #### Ubuntu
 ```
-apt-get install \
-  bridge-utils ifenslave \
-  qemu-kvm libvirt-bin virtinst \
-  libguestfs-tools
+apt-get install qemu-kvm libvirt-bin virtinst libguestfs-tools
 ```
 
 Update /etc/apparmor.d/abstractions/libvirt-qemu to allow access to volume devices.
@@ -60,40 +91,22 @@ Patch libguestfs as Appendix B.1.
 
 #### CentOS
 ```
-yum install \
-  qemu-kvm libvirt virt-install \
-  libguestfs-tools
+yum install qemu-kvm libvirt virt-install libguestfs-tools
+```
+
+Enable and start `libvirtd` service.
+```
+systemctl enable libvirtd
+systemctl start libvirtd
 ```
 
 Package `libguestfs-xfs` is required in case file system is XFS.
 
 
-## 2.4 Network
-
-#### Ubuntu
-Example is in Appendix A.1.
-
-To apply updates, create ./interfaces with the updates, then apply it.
-```
-ifdown --all; mv interfaces /etc/network/; ifup --all
-```
-
-
-#### CentOS
-Example is in Appendix A.2.
-
-To apply updates, create or update files then restart networking service.
-```
-systemctl restart network
-```
-
-#### Note
-In case of bonding interface, make sure bonding module is in /etc/modules and loaded "lsmod | grep bonding".
-
-
-## 2.5 Volume
+## 2.3 Volume
 
 #### volume pool
+
 ```
 virsh pool-define-as --name lv --type logical --source-dev /dev/sda3
 virsh pool-build lv
@@ -384,9 +397,34 @@ dns-search contrail.juniper.net juniper.net jnpr.net
 
 ## A.2 CentOS interface
 
-`ifcfg-enp3s0f1`
+`ifcfg-eno1`
 ```
-DEVICE=enp3s0f1
+DEVICE=eno1
+TYPE=Ethernet
+ONBOOT=yes
+BOOTPROTO=none
+BRIDGE=br0
+NM_CONTROLLED=no
+```
+
+`ifcfg-br0`
+```
+DEVICE=br0
+TYPE=Bridge
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=10.87.68.132
+NETMASK=255.255.255.128
+GATEWAY=10.87.68.254
+DNS1=10.84.5.101
+DNS2=172.21.200.60
+DOMAIN="contrail.juniper.net lab.juniper.net juniper.net"
+NM_CONTROLLED=no
+```
+
+`ifcfg-ens2f0`
+```
+DEVICE=ens2f0
 TYPE=Ethernet
 ONBOOT=yes
 BOOTPROTO=none
@@ -395,9 +433,9 @@ SLAVE=yes
 NM_CONTROLLED=no
 ```
 
-`ifcfg-enp4s0f0`
+`ifcfg-ens2f1`
 ```
-DEVICE=enp4s0f0
+DEVICE=ens2f1
 TYPE=Ethernet
 ONBOOT=yes
 BOOTPROTO=none
@@ -424,33 +462,8 @@ DEVICE=br1
 TYPE=Bridge
 ONBOOT=yes
 BOOTPROTO=static
-IPADDR=10.26.32.11
+IPADDR=172.16.1.132
 NETMASK=255.255.255.0
-NM_CONTROLLED=no
-```
-
-`ifcfg-enp3s0f0`
-```
-DEVICE=enp3s0f0
-TYPE=Ethernet
-BOOTPROTO=none
-ONBOOT=yes
-BRIDGE=br0
-NM_CONTROLLED=no
-```
-
-`ifcfg-br0`
-```
-DEVICE=br0
-TYPE=Bridge
-ONBOOT=yes
-BOOTPROTO=static
-IPADDR=10.26.253.14
-NETMASK=255.255.255.0
-GATEWAY=10.26.253.1
-DNS1=10.26.251.5
-DNS2=8.8.8.8
-DOMAIN="lab.juniper.net juniper.net"
 NM_CONTROLLED=no
 ```
 
