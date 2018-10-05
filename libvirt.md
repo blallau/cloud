@@ -91,7 +91,7 @@ Patch libguestfs as Appendix B.1.
 
 #### CentOS
 ```
-yum install qemu-kvm libvirt virt-install libguestfs-tools
+yum install qemu-kvm libvirt virt-install libguestfs-tools libguestfs-xfs
 ```
 
 Enable and start `libvirtd` service.
@@ -99,8 +99,6 @@ Enable and start `libvirtd` service.
 systemctl enable libvirtd
 systemctl start libvirtd
 ```
-
-Package `libguestfs-xfs` is required in case file system is XFS.
 
 
 ## 2.3 Volume
