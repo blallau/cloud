@@ -22,6 +22,43 @@ declare -A vm_gateway_list
 declare -A vm_br_list
 declare -A vm_nic_model
 
+## CentOS cloud image based, on volume, disk resize, customized.
+#vm_cpu[controller]=4
+#vm_ram[controller]=32768
+#vm_disk[controller]=100G
+#vm_os[controller]=centos
+#vm_image[controller]=volume
+#vm_address_list[controller]="10.6.8.10       10.6.11.10"
+#vm_netmask_list[controller]="255.255.255.0   255.255.255.0"
+#vm_gateway_list[controller]="10.6.8.254      null"
+#vm_br_list[controller]="br-int br-l1-xe1"
+
+## CentOS cloud image based, on file, disk resize, customized.
+#vm_cpu[controller]=4
+#vm_ram[controller]=32768
+#vm_disk[controller]=100G
+#vm_os[controller]=centos
+#vm_image[controller]=file
+#vm_address_list[controller]="10.6.8.10       10.6.11.10"
+#vm_netmask_list[controller]="255.255.255.0   255.255.255.0"
+#vm_gateway_list[controller]="10.6.8.254      null"
+#vm_br_list[controller]="br-int br-l1-xe1"
+
+## Cirros cloud image based, on file, no resize, no customiztion.
+#vm_cpu[bms21]=1
+#vm_ram[bms21]=1024
+#vm_os[bms21]=cirros
+#vm_image[bms21]=file
+#vm_br_list[bms21]="br-l2-xe1"
+
+## No host OS, VM is defined only, on file, with size, no customiztion.
+#vm_cpu[bms-dh]=1
+#vm_ram[bms-dh]=2048
+#vm_disk[bms-dh]=40G
+#vm_os[bms-dh]=none
+#vm_image[bms-dh]=file
+#vm_br_list[bms-dh]="br-int br-l2-xe2"
+
 
 wait_for_host()
 {
@@ -168,6 +205,16 @@ customize_vm_rhel()
     echo ""
 }
 
+create_vm_image()
+{
+    local name=$1
+
+    vm_disk_img=$instance_path/$name.qcow2
+    vm_disk_arg="--disk path=$vm_disk_img,format=qcow2"
+    qemu-img create -f qcow2 -o preallocation=metadata \
+      $vm_disk_img ${vm_disk[$name]}
+}
+
 build_vm_image()
 {
     local name=$1
@@ -187,7 +234,7 @@ build_vm_image()
         vm_disk_arg="--disk path=$vm_disk_img,format=qcow2"
         if [ ${vm_disk[$name]} ]; then
             qemu-img create -f qcow2 -o preallocation=metadata \
-              $dst_img ${vm_disk[$name]}
+              $vm_disk_img ${vm_disk[$name]}
             virt-resize --expand /dev/sda1 $src_img $vm_disk_img
         else
             cp $src_img $vm_disk_img
@@ -259,6 +306,9 @@ launch_vm()
     elif [ ${vm_os[$name]} == "cirros" ]; then
         build_vm_image $name $image_path/$image_cirros
         create_vm $name
+    elif [ ${vm_os[$name]} == "none" ]; then
+        create_vm_image $name
+        define_vm $name
     elif [ ${vm_os[$name]} == "vqfx-re" ]; then
         build_vm_image $name $image_path/$image_vqfx_re
         define_vm $name
